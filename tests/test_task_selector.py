@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, patch
 import pytest
 from task_selector import select_task
 

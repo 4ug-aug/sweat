@@ -31,11 +31,14 @@ async def _select(tasks: list[dict]) -> dict | None:
     # Extract JSON — Claude may wrap it in markdown fences
     if "```" in text:
         text = text.split("```")[1]
-        if text.startswith("json"):
+        if text.lower().startswith("json"):
             text = text[4:]
         text = text.strip()
 
-    data = json.loads(text)
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        return None
     selected_gid = data.get("task_gid")
     if not selected_gid:
         return None
