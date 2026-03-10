@@ -1,4 +1,5 @@
 import asana
+import config
 
 
 class _Client:
@@ -50,13 +51,8 @@ class _StoriesProxy:
         return self._api.create_story_for_task({"data": body}, task_id, {})
 
 
-# Attach our Client shim to the asana module so tests can patch asana_client.asana.Client
-asana.Client = _Client
-
-
 def _client() -> _Client:
-    import config
-    return asana.Client.access_token(config.ASANA_TOKEN)
+    return _Client.access_token(config.ASANA_TOKEN)
 
 
 def get_unassigned_tasks(project_id: str) -> list[dict]:

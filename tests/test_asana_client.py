@@ -3,7 +3,7 @@ import pytest
 from asana_client import get_unassigned_tasks, assign_task, add_comment
 
 
-@patch("asana_client.asana.Client")
+@patch("asana_client._Client")
 def test_get_unassigned_tasks_returns_list(mock_client_class):
     mock_client = MagicMock()
     mock_client_class.access_token.return_value = mock_client
@@ -25,7 +25,7 @@ def test_get_unassigned_tasks_returns_list(mock_client_class):
     assert tasks[0]["assignee"] is None
 
 
-@patch("asana_client.asana.Client")
+@patch("asana_client._Client")
 def test_get_unassigned_tasks_filters_assigned(mock_client_class):
     mock_client = MagicMock()
     mock_client_class.access_token.return_value = mock_client
@@ -44,7 +44,7 @@ def test_get_unassigned_tasks_filters_assigned(mock_client_class):
     assert tasks == []
 
 
-@patch("asana_client.asana.Client")
+@patch("asana_client._Client")
 def test_assign_task_calls_api(mock_client_class):
     mock_client = MagicMock()
     mock_client_class.access_token.return_value = mock_client
@@ -56,7 +56,7 @@ def test_assign_task_calls_api(mock_client_class):
     )
 
 
-@patch("asana_client.asana.Client")
+@patch("asana_client._Client")
 def test_add_comment_calls_api(mock_client_class):
     mock_client = MagicMock()
     mock_client_class.access_token.return_value = mock_client
