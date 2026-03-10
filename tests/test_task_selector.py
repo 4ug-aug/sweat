@@ -38,6 +38,8 @@ def test_select_task_returns_none_when_no_feasible_task(mock_query):
     assert result is None
 
 
-def test_select_task_returns_none_on_empty_list():
+@patch("task_selector.query")
+def test_select_task_returns_none_on_empty_list(mock_query):
     result = select_task([])
     assert result is None
+    mock_query.assert_not_called()
