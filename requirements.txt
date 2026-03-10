@@ -1,0 +1,8 @@
+anthropic>=0.40.0
+claude-agent-sdk>=0.0.14
+asana>=5.0.0
+PyGithub>=2.1.1
+GitPython>=3.1.41
+python-dotenv>=1.0.0
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
