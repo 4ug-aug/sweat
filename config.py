@@ -3,7 +3,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
 ASANA_TOKEN = os.environ["ASANA_TOKEN"]
 GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
 ASANA_ASSIGNEE_GID = os.environ["ASANA_ASSIGNEE_GID"]

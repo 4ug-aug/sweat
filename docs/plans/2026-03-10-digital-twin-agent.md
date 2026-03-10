@@ -230,11 +230,13 @@ git commit -m "feat: asana client"
 - Create: `task_selector.py`
 - Create: `tests/test_task_selector.py`
 
+**Note:** Uses `claude-agent-sdk` (not `anthropic` SDK directly) so auth goes through Claude Code — no API key needed.
+
 **Step 1: Write the failing tests**
 
 ```python
 # tests/test_task_selector.py
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, AsyncMock
 import pytest
 from task_selector import select_task
 
@@ -245,13 +247,14 @@ TASKS = [
 ]
 
 
-@patch("task_selector.anthropic.Anthropic")
-def test_select_task_returns_task_when_feasible(mock_anthropic_class):
-    mock_client = MagicMock()
-    mock_anthropic_class.return_value = mock_client
-    mock_client.messages.create.return_value = MagicMock(
-        content=[MagicMock(text='{"task_gid": "111", "reason": "Clear bug with reproduction"}')]
-    )
+@patch("task_selector.query")
+def test_select_task_returns_task_when_feasible(mock_query):
+    async def fake_messages():
+        msg = MagicMock()
+        msg.content = [MagicMock(text='{"task_gid": "111", "reason": "Clear bug with reproduction"}')]
+        yield msg
+
+    mock_query.return_value = fake_messages()
 
     result = select_task(TASKS)
 
@@ -259,21 +262,21 @@ def test_select_task_returns_task_when_feasible(mock_anthropic_class):
     assert result["gid"] == "111"
 
 
-@patch("task_selector.anthropic.Anthropic")
-def test_select_task_returns_none_when_no_feasible_task(mock_anthropic_class):
-    mock_client = MagicMock()
-    mock_anthropic_class.return_value = mock_client
-    mock_client.messages.create.return_value = MagicMock(
-        content=[MagicMock(text='{"task_gid": null, "reason": "All tasks are too vague"}')]
-    )
+@patch("task_selector.query")
+def test_select_task_returns_none_when_no_feasible_task(mock_query):
+    async def fake_messages():
+        msg = MagicMock()
+        msg.content = [MagicMock(text='{"task_gid": null, "reason": "All tasks are too vague"}')]
+        yield msg
+
+    mock_query.return_value = fake_messages()
 
     result = select_task(TASKS)
 
     assert result is None
 
 
-@patch("task_selector.anthropic.Anthropic")
-def test_select_task_returns_none_on_empty_list(mock_anthropic_class):
+def test_select_task_returns_none_on_empty_list():
     result = select_task([])
     assert result is None
 ```
@@ -288,9 +291,9 @@ Expected: ImportError
 **Step 3: Write `task_selector.py`**
 
 ```python
+import asyncio
 import json
-import anthropic
-import config
+from claude_agent_sdk import query, ClaudeAgentOptions
 
 _SYSTEM = """You are an AI agent that evaluates software tasks for feasibility.
 Given a list of tasks, you pick the ONE task you are most confident you can implement
@@ -301,31 +304,39 @@ Respond ONLY with valid JSON in this format:
 {"task_gid": "<gid or null>", "reason": "<one sentence>"}"""
 
 
-def select_task(tasks: list[dict]) -> dict | None:
-    if not tasks:
-        return None
-
+async def _select(tasks: list[dict]) -> dict | None:
     task_list = "\n".join(
         f"- GID: {t['gid']} | Name: {t['name']} | Notes: {t.get('notes', '')[:200]}"
         for t in tasks
     )
-    prompt = f"Here are the available tasks:\n\n{task_list}\n\nWhich one should I work on?"
+    prompt = f"{_SYSTEM}\n\nHere are the available tasks:\n\n{task_list}\n\nWhich one should I work on? Reply with JSON only."
 
-    client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
-    response = client.messages.create(
-        model="claude-opus-4-6",
-        max_tokens=256,
-        system=_SYSTEM,
-        messages=[{"role": "user", "content": prompt}],
-    )
+    text = ""
+    async for message in query(prompt=prompt, options=ClaudeAgentOptions()):
+        if hasattr(message, "content"):
+            for block in message.content:
+                if hasattr(block, "text"):
+                    text = block.text
 
-    data = json.loads(response.content[0].text)
+    if not text:
+        return None
+
+    # Extract JSON — Claude may wrap it in markdown fences
+    if "```" in text:
+        text = text.split("```")[1].lstrip("json").strip()
+
+    data = json.loads(text)
     selected_gid = data.get("task_gid")
-
     if not selected_gid:
         return None
 
     return next((t for t in tasks if t["gid"] == selected_gid), None)
+
+
+def select_task(tasks: list[dict]) -> dict | None:
+    if not tasks:
+        return None
+    return asyncio.run(_select(tasks))
 ```
 
 **Step 4: Run tests to verify they pass**
