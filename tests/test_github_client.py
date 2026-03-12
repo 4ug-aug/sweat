@@ -5,9 +5,11 @@ import pytest
 from github_client import clone_repo, create_branch, commit_and_push, create_pr
 
 
+@patch("github_client.tempfile.mkdtemp")
 @patch("github_client.git.Repo.clone_from")
-def test_clone_repo_returns_path(mock_clone):
+def test_clone_repo_returns_path(mock_clone, mock_mkdtemp):
     mock_clone.return_value = MagicMock()
+    mock_mkdtemp.return_value = "/tmp/sweat_test123"
     path = clone_repo("augusttollerup/myrepo")
     assert os.path.isabs(path)
     assert mock_clone.called

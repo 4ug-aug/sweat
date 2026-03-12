@@ -5,7 +5,11 @@ import config
 
 
 def clone_repo(repo: str) -> str:
-    """Clone repo to a fresh temp dir, return the path."""
+    """Clone repo to a fresh temp dir, return the path.
+
+    The cloned .git/config will contain GITHUB_TOKEN in the remote URL.
+    Callers must delete the temp dir (e.g. shutil.rmtree) when done.
+    """
     tmp = tempfile.mkdtemp(prefix="sweat_")
     url = f"https://x-access-token:{config.GITHUB_TOKEN}@github.com/{repo}.git"
     git.Repo.clone_from(url, tmp)
