@@ -1,5 +1,7 @@
 import json
-from claude_agent_sdk import query, ClaudeAgentOptions
+import logging
+
+from claude_agent_sdk import ClaudeAgentOptions, query
 
 _SYSTEM = """You are an AI agent that evaluates software tasks for feasibility.
 Given a list of tasks, you pick the ONE task you are most confident you can implement
@@ -39,9 +41,13 @@ async def select_task(tasks: list[dict]) -> dict | None:
     try:
         data = json.loads(text)
     except json.JSONDecodeError:
+        logging.error(f"Task selector: failed to parse JSON: {text}")
         return None
     selected_gid = data.get("task_gid")
     if not selected_gid:
+        logging.error(f"Task selector: no task GID found in: {data}")
         return None
-
+    logging.info(
+        f"Task selector: selected task: {selected_gid}, reason: {data.get('reason')}"
+    )
     return next((t for t in tasks if t["gid"] == selected_gid), None)

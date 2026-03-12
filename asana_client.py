@@ -1,4 +1,5 @@
 import asana
+
 import config
 
 
@@ -57,6 +58,7 @@ def _client() -> _Client:
 
 def get_unassigned_tasks(project_id: str) -> list[dict]:
     client = _client()
+    print(f"Getting tasks for project: {project_id}")
     task_refs = client.tasks.get_tasks_for_project(
         project_id,
         opt_fields="gid,name",
@@ -64,6 +66,7 @@ def get_unassigned_tasks(project_id: str) -> list[dict]:
     )
     tasks = []
     for ref in task_refs:
+        print(f"Getting task: {ref['gid']}")
         task = client.tasks.get_task(ref["gid"], opt_fields="gid,name,notes,assignee")
         if task.get("assignee") is None:
             tasks.append(task)

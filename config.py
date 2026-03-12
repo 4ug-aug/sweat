@@ -1,4 +1,5 @@
 import os
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -10,8 +11,8 @@ ASANA_ASSIGNEE_GID = os.environ["ASANA_ASSIGNEE_GID"]
 # Map Asana project GIDs to GitHub repos
 PROJECTS = [
     {
-        "asana_project_id": "YOUR_PROJECT_GID",
-        "github_repo": "augusttollerup/your-repo",
+        "asana_project_id": "1213637712779616",
+        "github_repo": "4ug-aug/sweat",
         "branch_prefix": "agent/",
     }
 ]
