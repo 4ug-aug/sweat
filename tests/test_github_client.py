@@ -1,8 +1,9 @@
+import base64
 import os
 import tempfile
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 import pytest
-from github_client import clone_repo, create_branch, commit_and_push, create_pr
+from github_client import clone_repo, create_branch, commit_and_push, create_pr, get_repo_summary
 
 
 @patch("github_client.tempfile.mkdtemp")
@@ -63,3 +64,31 @@ def test_create_pr_returns_url(mock_github_class):
         head="agent/asana-111-fix-login",
         base="main",
     )
+
+
+@patch("github_client.Github")
+def test_get_repo_summary_includes_tree_and_readme(mock_github_class):
+    mock_gh = MagicMock()
+    mock_github_class.return_value = mock_gh
+    mock_repo = MagicMock()
+    mock_gh.get_repo.return_value = mock_repo
+    mock_repo.default_branch = "main"
+
+    # File tree
+    blob_entry = MagicMock()
+    blob_entry.type = "blob"
+    blob_entry.path = "README.md"
+    blob_entry.sha = "abc123"
+    mock_repo.get_git_tree.return_value.tree = [blob_entry]
+
+    # README content
+    readme_content = base64.b64encode(b"# My Project\nDoes cool things.").decode()
+    mock_blob = MagicMock()
+    mock_blob.content = readme_content
+    mock_repo.get_git_blob.return_value = mock_blob
+
+    summary = get_repo_summary("augusttollerup/myrepo")
+
+    assert "README.md" in summary
+    assert "My Project" in summary
+    assert "augusttollerup/myrepo" in summary

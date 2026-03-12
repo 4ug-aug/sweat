@@ -12,13 +12,15 @@ from main import run
 @patch("main.clone_repo")
 @patch("main.assign_task")
 @patch("main.select_task", new_callable=AsyncMock)
+@patch("main.get_repo_summary")
 @patch("main.get_unassigned_tasks")
 async def test_run_full_flow(
-    mock_get_tasks, mock_select, mock_assign,
+    mock_get_tasks, mock_get_summary, mock_select, mock_assign,
     mock_clone, mock_run_agent, mock_create_branch,
     mock_commit_push, mock_create_pr, mock_add_comment
 ):
     mock_get_tasks.return_value = [{"gid": "111", "name": "Fix login bug", "notes": "desc"}]
+    mock_get_summary.return_value = "## File tree\nfoo.py"
     mock_select.return_value = {"gid": "111", "name": "Fix login bug", "notes": "desc"}
     mock_clone.return_value = "/tmp/sweat_abc"
     mock_run_agent.return_value = MagicMock(success=True, summary="Fixed auth module")
@@ -31,21 +33,27 @@ async def test_run_full_flow(
     mock_create_pr.assert_called_once()
     # Comment posted twice: proposal before, PR link after
     assert mock_add_comment.call_count == 2
+    # repo context passed to select_task
+    mock_select.assert_called_once_with([{"gid": "111", "name": "Fix login bug", "notes": "desc"}], repo_context="## File tree\nfoo.py")
 
 
 @patch("main.select_task", new_callable=AsyncMock)
+@patch("main.get_repo_summary")
 @patch("main.get_unassigned_tasks")
-async def test_run_exits_cleanly_when_no_task(mock_get_tasks, mock_select):
+async def test_run_exits_cleanly_when_no_task(mock_get_tasks, mock_get_summary, mock_select):
     mock_get_tasks.return_value = []
+    mock_get_summary.return_value = ""
     mock_select.return_value = None
     # Should not raise
     await run(dry_run=False)
 
 
 @patch("main.select_task", new_callable=AsyncMock)
+@patch("main.get_repo_summary")
 @patch("main.get_unassigned_tasks")
-async def test_dry_run_does_not_assign_or_clone(mock_get_tasks, mock_select):
+async def test_dry_run_does_not_assign_or_clone(mock_get_tasks, mock_get_summary, mock_select):
     mock_get_tasks.return_value = [{"gid": "111", "name": "Fix login bug", "notes": "desc"}]
+    mock_get_summary.return_value = "## File tree\nfoo.py"
     mock_select.return_value = {"gid": "111", "name": "Fix login bug", "notes": "desc"}
 
     with patch("main.assign_task") as mock_assign, patch("main.clone_repo") as mock_clone:
@@ -62,13 +70,15 @@ async def test_dry_run_does_not_assign_or_clone(mock_get_tasks, mock_select):
 @patch("main.clone_repo")
 @patch("main.assign_task")
 @patch("main.select_task", new_callable=AsyncMock)
+@patch("main.get_repo_summary")
 @patch("main.get_unassigned_tasks")
 async def test_run_posts_error_on_agent_failure(
-    mock_get_tasks, mock_select, mock_assign,
+    mock_get_tasks, mock_get_summary, mock_select, mock_assign,
     mock_clone, mock_run_agent, mock_create_branch,
     mock_commit_push, mock_create_pr, mock_add_comment
 ):
     mock_get_tasks.return_value = [{"gid": "111", "name": "Fix login bug", "notes": "desc"}]
+    mock_get_summary.return_value = "## File tree\nfoo.py"
     mock_select.return_value = {"gid": "111", "name": "Fix login bug", "notes": "desc"}
     mock_clone.return_value = "/tmp/sweat_abc"
     mock_run_agent.return_value = MagicMock(success=False, error="Agent crashed")

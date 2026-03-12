@@ -4,22 +4,25 @@ import logging
 from claude_agent_sdk import ClaudeAgentOptions, query
 
 _SYSTEM = """You are an AI agent that evaluates software tasks for feasibility.
-Given a list of tasks, you pick the ONE task you are most confident you can implement
-in code. Prefer tasks with clear bug descriptions, specific acceptance criteria, or
-small scope. Avoid tasks that are vague, require human judgment, or are non-technical.
+Given a list of tasks and context about the codebase, you pick the ONE task you are
+most confident you can implement in code. Use the repo context to assess whether the
+codebase has the right structure, language, and patterns for you to tackle the task.
+Prefer tasks with clear bug descriptions, specific acceptance criteria, or small scope.
+Avoid tasks that are vague, require human judgment, or are non-technical.
 
 Respond ONLY with valid JSON in this format:
 {"task_gid": "<gid or null>", "reason": "<one sentence>"}"""
 
 
-async def select_task(tasks: list[dict]) -> dict | None:
+async def select_task(tasks: list[dict], repo_context: str = "") -> dict | None:
     if not tasks:
         return None
     task_list = "\n".join(
         f"- GID: {t['gid']} | Name: {t['name']} | Notes: {t.get('notes', '')[:200]}"
         for t in tasks
     )
-    prompt = f"{_SYSTEM}\n\nHere are the available tasks:\n\n{task_list}\n\nWhich one should I work on? Reply with JSON only."
+    context_section = f"\n\n## Codebase context\n{repo_context}" if repo_context else ""
+    prompt = f"{_SYSTEM}{context_section}\n\nHere are the available tasks:\n\n{task_list}\n\nWhich one should I work on? Reply with JSON only."
 
     text = ""
     async for message in query(prompt=prompt, options=ClaudeAgentOptions()):

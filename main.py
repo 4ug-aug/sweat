@@ -6,7 +6,7 @@ import sys
 import config
 from agent import run_agent
 from asana_client import add_comment, assign_task, get_unassigned_tasks
-from github_client import clone_repo, commit_and_push, create_branch, create_pr
+from github_client import clone_repo, commit_and_push, create_branch, create_pr, get_repo_summary
 from prompts.task_prompt import build_agent_prompt
 from task_selector import select_task
 
@@ -19,14 +19,18 @@ def _branch_name(task: dict, prefix: str) -> str:
 async def run(dry_run: bool = False) -> None:
     all_tasks = []
     task_project_map: dict[str, dict] = {}  # task gid -> project config
+    repo_summaries: list[str] = []
     for project in config.PROJECTS:
         print(f"Fetching tasks from project: {project['asana_project_id']}")
         fetched = get_unassigned_tasks(project["asana_project_id"])
         all_tasks.extend(fetched)
         for t in fetched:
             task_project_map[t["gid"]] = project
+        print(f"Fetching repo summary for {project['github_repo']}")
+        repo_summaries.append(get_repo_summary(project["github_repo"]))
 
-    task = await select_task(all_tasks)
+    repo_context = "\n\n---\n\n".join(repo_summaries)
+    task = await select_task(all_tasks, repo_context=repo_context)
     if task is None:
         print("No feasible task found. Exiting.")
         return
