@@ -7,7 +7,7 @@ The goal is for SWEAT to behave like August would if August had infinite time. B
 ## 1. Task Organisation
 
 **Triage inbox tasks**
-On each run, scan tasks in a designated "Inbox" project and sort them into the right projects, sections, and priorities. Claude reads the task name/description and decides where it belongs — the same judgment call you make when clearing your inbox.
+On each run, scan tasks in a designated "Inbox/Backlog" project and sort them into the right projects, sections, and priorities. Claude reads the task name/description and decides where it belongs — the same judgment call you make when clearing your inbox.
 
 **Break down large tasks into subtasks**
 Detect tasks that are too big to execute in one go (vague scope, no clear definition of done) and automatically decompose them into concrete subtasks. Claude writes the subtasks, attaches them, and adds a comment explaining the breakdown.

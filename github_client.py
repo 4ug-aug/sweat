@@ -85,3 +85,56 @@ def create_pr(repo: str, branch: str, title: str, body: str) -> str:
     gh_repo = gh.get_repo(repo)
     pr = gh_repo.create_pull(title=title, body=body, head=branch, base="main")
     return pr.html_url
+
+
+def get_bot_login() -> str:
+    return Github(config.GITHUB_TOKEN).get_user().login
+
+
+def get_open_prs(repo: str) -> list[dict]:
+    gh = Github(config.GITHUB_TOKEN)
+    prs = gh.get_repo(repo).get_pulls(state="open", sort="created")
+    return [
+        {
+            "number": pr.number,
+            "title": pr.title,
+            "author_login": pr.user.login,
+            "head_branch": pr.head.ref,
+            "base_branch": pr.base.ref,
+            "html_url": pr.html_url,
+        }
+        for pr in prs
+        if not pr.draft
+    ]
+
+
+def has_bot_reviewed(repo: str, pr_number: int, bot_login: str) -> bool:
+    gh = Github(config.GITHUB_TOKEN)
+    reviews = gh.get_repo(repo).get_pull(pr_number).get_reviews()
+    return any(r.user.login == bot_login for r in reviews)
+
+
+def get_pr_metadata(repo: str, pr_number: int) -> dict:
+    gh = Github(config.GITHUB_TOKEN)
+    pr = gh.get_repo(repo).get_pull(pr_number)
+    return {
+        "number": pr.number,
+        "title": pr.title,
+        "body": pr.body or "",
+        "author_login": pr.user.login,
+        "head_branch": pr.head.ref,
+        "base_branch": pr.base.ref,
+        "html_url": pr.html_url,
+    }
+
+
+def get_pr_diff(repo: str, pr_number: int) -> str:
+    gh = Github(config.GITHUB_TOKEN)
+    files = gh.get_repo(repo).get_pull(pr_number).get_files()
+    parts = [f"--- {f.filename}\n{f.patch or ''}" for f in files if f.patch]
+    return "\n\n".join(parts)
+
+
+def post_pr_review(repo: str, pr_number: int, body: str, event: str = "COMMENT") -> None:
+    gh = Github(config.GITHUB_TOKEN)
+    gh.get_repo(repo).get_pull(pr_number).create_review(body=body, event=event)

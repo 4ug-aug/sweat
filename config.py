@@ -8,6 +8,8 @@ ASANA_TOKEN = os.environ["ASANA_TOKEN"]
 GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
 ASANA_ASSIGNEE_GID = os.environ["ASANA_ASSIGNEE_GID"]
 
+AUDIT_LOG_PATH = os.environ.get("AUDIT_LOG_PATH", "audit.jsonl")
+
 # Map Asana project GIDs to GitHub repos
 PROJECTS = [
     {

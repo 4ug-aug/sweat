@@ -9,12 +9,12 @@ class AgentResult:
     error: str | None = None
 
 
-async def run_agent(repo_path: str, prompt: str) -> AgentResult:
+async def run_agent(repo_path: str | None, prompt: str) -> AgentResult:
     """Run Claude Code SDK headlessly in repo_path with the given prompt."""
     try:
         options = ClaudeAgentOptions(
-            cwd=repo_path,
             permission_mode="acceptEdits",
+            **({"cwd": repo_path} if repo_path else {}),
         )
         summary_parts = []
         async for message in query(prompt=prompt, options=options):

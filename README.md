@@ -64,14 +64,18 @@ sweat authenticates via **Claude Code** — no Anthropic API key is needed. Both
 
 ```
 sweat/
-├── main.py                  # Entrypoint — orchestrates the full loop
+├── cli.py                   # Service entrypoint — runs both loops concurrently
+├── main.py                  # Implementer — picks a task, writes code, opens PR
+├── pr_poller.py             # PR reviewer poller — finds unreviewed PRs
+├── pr_reviewer.py           # Orchestrates a single PR review end-to-end
 ├── config.py                # Loads env vars and project/repo mappings
 ├── asana_client.py          # Asana API: list tasks, assign, comment
-├── github_client.py         # GitHub: clone, branch, push, open PR
+├── github_client.py         # GitHub: clone, branch, push, open/review PRs
 ├── task_selector.py         # Claude picks the most feasible task
 ├── agent.py                 # claude-agent-sdk wrapper
 ├── prompts/
-│   └── task_prompt.py       # Builds the prompt for Claude Code
+│   ├── task_prompt.py       # Builds the implementation prompt for Claude Code
+│   └── review_prompt.py     # Builds the PR review prompt for Claude Code
 ├── tests/                   # Unit tests (all external calls mocked)
 ├── pyproject.toml           # uv project config and dependencies
 ├── .env.example             # Template for required env vars
@@ -114,22 +118,28 @@ Multiple projects are supported — the agent picks one task across all of them 
 uv sync
 ```
 
-**Dry run** (no side effects — prints what it would do):
+**Start the service:**
+
+```bash
+uv run python cli.py start
+```
+
+This starts two loops concurrently:
+- **Implementer** — picks and implements an Asana task, opens a PR (default: every hour)
+- **PR reviewer** — reviews open PRs that haven't been reviewed by the bot yet (default: every 60s)
+
+Ctrl-C or `SIGTERM` shuts both down cleanly.
+
+**Custom intervals:**
+
+```bash
+uv run python cli.py start --implement-interval 1800 --review-interval 30
+```
+
+**Dry run** (no side effects — prints what the implementer would do):
 
 ```bash
 uv run python main.py --dry-run
-```
-
-**Full run:**
-
-```bash
-uv run python main.py
-```
-
-**Schedule with cron** (runs every hour):
-
-```
-0 * * * * cd /path/to/sweat && uv run python main.py >> /tmp/sweat.log 2>&1
 ```
 
 ---
