@@ -1,6 +1,5 @@
 # tests/test_main.py
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 import pytest
 from main import run
 
@@ -51,3 +50,31 @@ async def test_dry_run_does_not_assign_or_clone(mock_get_tasks, mock_select):
         await run(dry_run=True)
         mock_assign.assert_not_called()
         mock_clone.assert_not_called()
+
+
+@patch("main.add_comment")
+@patch("main.create_pr")
+@patch("main.commit_and_push")
+@patch("main.create_branch")
+@patch("main.run_agent")
+@patch("main.clone_repo")
+@patch("main.assign_task")
+@patch("main.select_task")
+@patch("main.get_unassigned_tasks")
+async def test_run_posts_error_on_agent_failure(
+    mock_get_tasks, mock_select, mock_assign,
+    mock_clone, mock_run_agent, mock_create_branch,
+    mock_commit_push, mock_create_pr, mock_add_comment
+):
+    mock_get_tasks.return_value = [{"gid": "111", "name": "Fix login bug", "notes": "desc"}]
+    mock_select.return_value = {"gid": "111", "name": "Fix login bug", "notes": "desc"}
+    mock_clone.return_value = "/tmp/sweat_abc"
+    mock_run_agent.return_value = MagicMock(success=False, error="Agent crashed")
+
+    await run(dry_run=False)
+
+    assert mock_assign.call_count == 2
+    second_call_args = mock_assign.call_args_list[1]
+    assert second_call_args[0][1] is None  # unassigned with None
+    assert mock_add_comment.call_count == 2
+    mock_create_pr.assert_not_called()

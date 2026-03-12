@@ -17,8 +17,12 @@ def _branch_name(task: dict, prefix: str) -> str:
 
 async def run(dry_run: bool = False) -> None:
     all_tasks = []
+    task_project_map: dict[str, dict] = {}  # task gid -> project config
     for project in config.PROJECTS:
-        all_tasks.extend(get_unassigned_tasks(project["asana_project_id"]))
+        fetched = get_unassigned_tasks(project["asana_project_id"])
+        all_tasks.extend(fetched)
+        for t in fetched:
+            task_project_map[t["gid"]] = project
 
     task = select_task(all_tasks)
     if task is None:
@@ -31,11 +35,7 @@ async def run(dry_run: bool = False) -> None:
         print("[dry-run] Would assign, clone, implement, and open PR. Exiting.")
         return
 
-    project_cfg = next(
-        p for p in config.PROJECTS
-        if get_unassigned_tasks(p["asana_project_id"])  # any project that had tasks
-        or True  # fallback: use first project
-    )
+    project_cfg = task_project_map[task["gid"]]
     repo = project_cfg["github_repo"]
     branch = _branch_name(task, project_cfg["branch_prefix"])
 
@@ -49,7 +49,7 @@ async def run(dry_run: bool = False) -> None:
         result = await run_agent(repo_path, prompt)
 
         if not result.success:
-            assign_task(task["gid"], "null")  # unassign
+            assign_task(task["gid"], None)  # unassign
             add_comment(task["gid"], f"I ran into an error and could not complete this task:\n\n{result.error}")
             return
 
