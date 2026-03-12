@@ -2,12 +2,13 @@ import asyncio
 import re
 import shutil
 import sys
+
 import config
-from asana_client import get_unassigned_tasks, assign_task, add_comment
-from github_client import clone_repo, create_branch, commit_and_push, create_pr
-from task_selector import select_task
 from agent import run_agent
+from asana_client import add_comment, assign_task, get_unassigned_tasks
+from github_client import clone_repo, commit_and_push, create_branch, create_pr
 from prompts.task_prompt import build_agent_prompt
+from task_selector import select_task
 
 
 def _branch_name(task: dict, prefix: str) -> str:
@@ -19,12 +20,13 @@ async def run(dry_run: bool = False) -> None:
     all_tasks = []
     task_project_map: dict[str, dict] = {}  # task gid -> project config
     for project in config.PROJECTS:
+        print(f"Fetching tasks from project: {project['asana_project_id']}")
         fetched = get_unassigned_tasks(project["asana_project_id"])
         all_tasks.extend(fetched)
         for t in fetched:
             task_project_map[t["gid"]] = project
 
-    task = select_task(all_tasks)
+    task = await select_task(all_tasks)
     if task is None:
         print("No feasible task found. Exiting.")
         return
@@ -40,7 +42,10 @@ async def run(dry_run: bool = False) -> None:
     branch = _branch_name(task, project_cfg["branch_prefix"])
 
     assign_task(task["gid"], config.ASANA_ASSIGNEE_GID)
-    add_comment(task["gid"], f"I'm picking this up. Proposed approach: I'll analyse the codebase and implement a fix on branch `{branch}`. Will post the PR link here once done.")
+    add_comment(
+        task["gid"],
+        f"I'm picking this up. Proposed approach: I'll analyse the codebase and implement a fix on branch `{branch}`. Will post the PR link here once done.",
+    )
 
     repo_path = clone_repo(repo)
     try:
@@ -50,7 +55,10 @@ async def run(dry_run: bool = False) -> None:
 
         if not result.success:
             assign_task(task["gid"], None)  # unassign
-            add_comment(task["gid"], f"I ran into an error and could not complete this task:\n\n{result.error}")
+            add_comment(
+                task["gid"],
+                f"I ran into an error and could not complete this task:\n\n{result.error}",
+            )
             return
 
         commit_and_push(repo_path, branch, f"fix: {task['name'][:72]}")

@@ -1,4 +1,3 @@
-import asyncio
 import json
 from claude_agent_sdk import query, ClaudeAgentOptions
 
@@ -11,7 +10,9 @@ Respond ONLY with valid JSON in this format:
 {"task_gid": "<gid or null>", "reason": "<one sentence>"}"""
 
 
-async def _select(tasks: list[dict]) -> dict | None:
+async def select_task(tasks: list[dict]) -> dict | None:
+    if not tasks:
+        return None
     task_list = "\n".join(
         f"- GID: {t['gid']} | Name: {t['name']} | Notes: {t.get('notes', '')[:200]}"
         for t in tasks
@@ -44,9 +45,3 @@ async def _select(tasks: list[dict]) -> dict | None:
         return None
 
     return next((t for t in tasks if t["gid"] == selected_gid), None)
-
-
-def select_task(tasks: list[dict]) -> dict | None:
-    if not tasks:
-        return None
-    return asyncio.run(_select(tasks))
