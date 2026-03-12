@@ -74,21 +74,35 @@ def test_get_repo_summary_includes_tree_and_readme(mock_github_class):
     mock_gh.get_repo.return_value = mock_repo
     mock_repo.default_branch = "main"
 
-    # File tree
-    blob_entry = MagicMock()
-    blob_entry.type = "blob"
-    blob_entry.path = "README.md"
-    blob_entry.sha = "abc123"
-    mock_repo.get_git_tree.return_value.tree = [blob_entry]
+    # File tree with CLAUDE.md and README.md
+    def make_entry(path, sha):
+        e = MagicMock()
+        e.type = "blob"
+        e.path = path
+        e.sha = sha
+        return e
 
-    # README content
-    readme_content = base64.b64encode(b"# My Project\nDoes cool things.").decode()
-    mock_blob = MagicMock()
-    mock_blob.content = readme_content
-    mock_repo.get_git_blob.return_value = mock_blob
+    mock_repo.get_git_tree.return_value.tree = [
+        make_entry("CLAUDE.md", "sha1"),
+        make_entry("README.md", "sha2"),
+    ]
+
+    def fake_blob(sha):
+        b = MagicMock()
+        if sha == "sha1":
+            b.content = base64.b64encode(b"# Project instructions").decode()
+        else:
+            b.content = base64.b64encode(b"# My Project\nDoes cool things.").decode()
+        return b
+
+    mock_repo.get_git_blob.side_effect = fake_blob
 
     summary = get_repo_summary("augusttollerup/myrepo")
 
+    assert "CLAUDE.md" in summary
     assert "README.md" in summary
+    assert "Project instructions" in summary
     assert "My Project" in summary
     assert "augusttollerup/myrepo" in summary
+    # CLAUDE.md must appear before README.md in the output
+    assert summary.index("CLAUDE.md") < summary.index("README.md")

@@ -6,7 +6,9 @@ from github import Github
 
 import config
 
+_PRIORITY_FILES = {"CLAUDE.md"}  # shown first — project instructions for Claude
 _SUMMARY_FILES = {"README.md", "README.rst", "README", "pyproject.toml", "package.json", "Makefile"}
+_ALL_CONTEXT_FILES = _PRIORITY_FILES | _SUMMARY_FILES
 _MAX_FILE_BYTES = 6_000
 _MAX_TREE_ENTRIES = 120
 
@@ -14,8 +16,8 @@ _MAX_TREE_ENTRIES = 120
 def get_repo_summary(repo: str) -> str:
     """Return a concise text summary of the repo for use in Claude prompts.
 
-    Includes the file tree (up to _MAX_TREE_ENTRIES paths) and the content of
-    key files (README, pyproject.toml, package.json, etc.).
+    Includes CLAUDE.md (if present) first, then the file tree, then the content
+    of key files (README, pyproject.toml, package.json, etc.).
     """
     gh = Github(config.GITHUB_TOKEN)
     gh_repo = gh.get_repo(repo)
@@ -25,21 +27,28 @@ def get_repo_summary(repo: str) -> str:
     paths = [e.path for e in tree if e.type == "blob"][:_MAX_TREE_ENTRIES]
     tree_str = "\n".join(paths)
 
-    # Key file contents
-    snippets: list[str] = []
+    # Key file contents — CLAUDE.md first, then the rest
+    priority: list[str] = []
+    supporting: list[str] = []
     for entry in tree:
         if entry.type != "blob":
             continue
         filename = entry.path.split("/")[-1]
-        if filename in _SUMMARY_FILES:
-            try:
-                blob = gh_repo.get_git_blob(entry.sha)
-                content = base64.b64decode(blob.content).decode("utf-8", errors="replace")
-                content = content[:_MAX_FILE_BYTES]
-                snippets.append(f"### {entry.path}\n{content}")
-            except Exception:
-                pass
+        if filename not in _ALL_CONTEXT_FILES:
+            continue
+        try:
+            blob = gh_repo.get_git_blob(entry.sha)
+            content = base64.b64decode(blob.content).decode("utf-8", errors="replace")
+            content = content[:_MAX_FILE_BYTES]
+            snippet = f"### {entry.path}\n{content}"
+            if filename in _PRIORITY_FILES:
+                priority.append(snippet)
+            else:
+                supporting.append(snippet)
+        except Exception:
+            pass
 
+    snippets = priority + supporting
     parts = [f"## File tree ({repo})\n{tree_str}"]
     if snippets:
         parts.append("## Key files\n" + "\n\n".join(snippets))
