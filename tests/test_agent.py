@@ -1,11 +1,9 @@
-import asyncio
 from dataclasses import dataclass
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 import pytest
 from agent import run_agent, AgentResult
 
 
-@pytest.mark.asyncio
 @patch("agent.query")
 async def test_run_agent_returns_success(mock_query):
     async def fake_messages():
@@ -24,7 +22,6 @@ async def test_run_agent_returns_success(mock_query):
     assert call_kwargs.kwargs["prompt"] == "Fix the login bug in auth.py"
 
 
-@pytest.mark.asyncio
 @patch("agent.query")
 async def test_run_agent_returns_failure_on_error(mock_query):
     mock_query.side_effect = Exception("Claude timed out")
