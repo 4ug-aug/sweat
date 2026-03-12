@@ -7,7 +7,7 @@ from github import Github
 import config
 
 _PRIORITY_FILES = {"CLAUDE.md"}  # shown first — project instructions for Claude
-_SUMMARY_FILES = {"README.md", "README.rst", "README", "pyproject.toml", "package.json", "Makefile"}
+_SUMMARY_FILES = {"README.md", "README.rst", "README", "package.json"}
 _ALL_CONTEXT_FILES = _PRIORITY_FILES | _SUMMARY_FILES
 _MAX_FILE_BYTES = 6_000
 _MAX_TREE_ENTRIES = 120
@@ -17,7 +17,7 @@ def get_repo_summary(repo: str) -> str:
     """Return a concise text summary of the repo for use in Claude prompts.
 
     Includes CLAUDE.md (if present) first, then the file tree, then the content
-    of key files (README, pyproject.toml, package.json, etc.).
+    of key files (README, package.json, etc.).
     """
     gh = Github(config.GITHUB_TOKEN)
     gh_repo = gh.get_repo(repo)
