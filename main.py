@@ -1,12 +1,9 @@
 import asyncio
-import logging
 import re
 import shutil
 import sys
 
 import audit
-
-logger = logging.getLogger(__name__)
 import config
 from agent import run_agent
 from asana_client import add_comment, assign_task, get_unassigned_tasks
@@ -26,27 +23,27 @@ async def run(dry_run: bool = False) -> None:
     task_project_map: dict[str, dict] = {}  # task gid -> project config
     repo_summaries: list[str] = []
     for project in config.PROJECTS:
-        logger.info(f"Fetching tasks from project: {project['asana_project_id']}")
+        print(f"Fetching tasks from project: {project['asana_project_id']}")
         fetched = get_unassigned_tasks(project["asana_project_id"])
         filtered = filter_and_rank_tasks(fetched, project)
         all_tasks.extend(filtered)
         for t in filtered:
             task_project_map[t["gid"]] = project
-        logger.info(f"Fetching repo summary for {project['github_repo']}")
+        print(f"Fetching repo summary for {project['github_repo']}")
         repo_summaries.append(get_repo_summary(project["github_repo"]))
 
     repo_context = "\n\n---\n\n".join(repo_summaries)
     task = await select_task(all_tasks, repo_context=repo_context)
     if task is None:
-        logger.info("No feasible task found. Exiting.")
+        print("No feasible task found. Exiting.")
         audit.log_event("no_task_found")
         return
 
-    logger.info(f"Selected task: [{task['gid']}] {task['name']}")
+    print(f"Selected task: [{task['gid']}] {task['name']}")
     audit.log_event("task_selected", task_gid=task["gid"], task_name=task["name"], repo=task_project_map[task["gid"]]["github_repo"])
 
     if dry_run:
-        logger.info("[dry-run] Would assign, clone, implement, and open PR. Exiting.")
+        print("[dry-run] Would assign, clone, implement, and open PR. Exiting.")
         return
 
     project_cfg = task_project_map[task["gid"]]
@@ -83,7 +80,7 @@ async def run(dry_run: bool = False) -> None:
         )
         add_comment(task["gid"], f"PR opened: {pr_url}")
         audit.log_event("implementation_succeeded", task_gid=task["gid"], task_name=task["name"], repo=repo, branch=branch, pr_url=pr_url)
-        logger.info(f"Done. PR: {pr_url}")
+        print(f"Done. PR: {pr_url}")
     finally:
         shutil.rmtree(repo_path, ignore_errors=True)
 
