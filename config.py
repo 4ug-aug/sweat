@@ -16,5 +16,19 @@ PROJECTS = [
         "asana_project_id": "1213637712779616",
         "github_repo": "4ug-aug/sweat",
         "branch_prefix": "agent/",
+        "field_names": {
+            "priority": "Priority",
+            "estimated_time": "Estimated Time",
+            "work_type": "Work Type",
+            "domain": "Domain",
+        },
+        "field_filters": {
+            "work_type": ["Bug", "Chore"],  # enum: value must be in list
+            "domain": ["Backend"],
+            "estimated_time": {"max": 4},  # numeric: ≤ 4
+            "priority": {"min": 1, "max": 3},  # numeric range
+        },
+        "priority_order": ["Urgent", "High", "Medium", "Low"],
+        "max_tasks_for_selector": 15,
     }
 ]

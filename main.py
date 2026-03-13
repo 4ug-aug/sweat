@@ -9,6 +9,7 @@ from agent import run_agent
 from asana_client import add_comment, assign_task, get_unassigned_tasks
 from github_client import clone_repo, commit_and_push, create_branch, create_pr, get_repo_summary
 from prompts.task_prompt import build_agent_prompt
+from task_filter import filter_and_rank_tasks
 from task_selector import select_task
 
 
@@ -24,8 +25,9 @@ async def run(dry_run: bool = False) -> None:
     for project in config.PROJECTS:
         print(f"Fetching tasks from project: {project['asana_project_id']}")
         fetched = get_unassigned_tasks(project["asana_project_id"])
-        all_tasks.extend(fetched)
-        for t in fetched:
+        filtered = filter_and_rank_tasks(fetched, project)
+        all_tasks.extend(filtered)
+        for t in filtered:
             task_project_map[t["gid"]] = project
         print(f"Fetching repo summary for {project['github_repo']}")
         repo_summaries.append(get_repo_summary(project["github_repo"]))

@@ -14,13 +14,29 @@ Respond ONLY with valid JSON in this format:
 {"task_gid": "<gid or null>", "reason": "<one sentence>"}"""
 
 
+def _format_task_line(task: dict) -> str:
+    def _cf(name):
+        for cf in task.get("custom_fields", []):
+            if cf.get("name") == name:
+                return cf.get("display_value") or ""
+        return ""
+
+    meta_parts = []
+    for label, field in [("Priority", "Priority"), ("Est", "Estimated Time"),
+                          ("Type", "Work Type"), ("Domain", "Domain")]:
+        val = _cf(field)
+        if val:
+            meta_parts.append(f"{label}: {val}")
+    meta = " | ".join(meta_parts)
+    meta_str = f" | {meta}" if meta else ""
+    notes = task.get("notes", "")[:200]
+    return f"- GID: {task['gid']} | Name: {task['name']}{meta_str} | Notes: {notes}"
+
+
 async def select_task(tasks: list[dict], repo_context: str = "") -> dict | None:
     if not tasks:
         return None
-    task_list = "\n".join(
-        f"- GID: {t['gid']} | Name: {t['name']} | Notes: {t.get('notes', '')[:200]}"
-        for t in tasks
-    )
+    task_list = "\n".join(_format_task_line(t) for t in tasks)
     context_section = f"\n\n## Codebase context\n{repo_context}" if repo_context else ""
     prompt = f"{_SYSTEM}{context_section}\n\nHere are the available tasks:\n\n{task_list}\n\nWhich one should I work on? Reply with JSON only."
 

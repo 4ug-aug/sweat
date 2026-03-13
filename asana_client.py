@@ -67,7 +67,7 @@ def get_unassigned_tasks(project_id: str) -> list[dict]:
     tasks = []
     for ref in task_refs:
         print(f"Getting task: {ref['gid']}")
-        task = client.tasks.get_task(ref["gid"], opt_fields="gid,name,notes,assignee")
+        task = client.tasks.get_task(ref["gid"], opt_fields="gid,name,notes,assignee,custom_fields")
         if task.get("assignee") is None:
             tasks.append(task)
     return tasks
