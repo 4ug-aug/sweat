@@ -81,3 +81,27 @@
 {"timestamp": "2026-03-13T13:49:51.583317+00:00", "event": "pr_review_posted", "repo": "org/repo", "pr_number": 1, "pr_title": "Fix bug", "agent_id": "test-reviewer"}
 {"timestamp": "2026-03-13T13:49:51.584451+00:00", "event": "pr_review_failed", "repo": "org/repo", "pr_number": 2, "error": "timeout", "agent_id": "test-reviewer"}
 {"timestamp": "2026-03-13T13:49:51.585748+00:00", "event": "pr_review_posted", "repo": "org/repo", "pr_number": 3, "pr_title": "Big PR", "agent_id": "test-reviewer"}
+{"timestamp": "2026-03-13T15:29:42.402119+00:00", "event": "task_selected", "task_gid": "111", "task_name": "Fix login bug", "repo": "org/repo", "agent_id": "test-impl"}
+{"timestamp": "2026-03-13T15:29:42.402752+00:00", "event": "implementation_succeeded", "task_gid": "111", "task_name": "Fix login bug", "repo": "org/repo", "branch": "agent/asana-111-fix-login-bug", "pr_url": "https://github.com/org/repo/pull/1", "agent_id": "test-impl"}
+{"timestamp": "2026-03-13T15:29:42.404132+00:00", "event": "no_task_found", "agent_id": "test-impl"}
+{"timestamp": "2026-03-13T15:29:42.405501+00:00", "event": "task_selected", "task_gid": "111", "task_name": "Fix login bug", "repo": "org/repo", "agent_id": "test-impl"}
+{"timestamp": "2026-03-13T15:29:42.406931+00:00", "event": "task_selected", "task_gid": "111", "task_name": "Fix login bug", "repo": "org/repo", "agent_id": "test-impl"}
+{"timestamp": "2026-03-13T15:29:42.407145+00:00", "event": "implementation_failed", "task_gid": "111", "task_name": "Fix login bug", "repo": "org/repo", "error": "Agent crashed", "agent_id": "test-impl"}
+{"timestamp": "2026-03-13T15:29:42.408423+00:00", "event": "no_task_found", "agent_id": "test-impl"}
+{"timestamp": "2026-03-13T15:29:42.409829+00:00", "event": "task_selected", "task_gid": "111", "task_name": "Fix login bug", "repo": "org/repo", "agent_id": "test-impl"}
+{"timestamp": "2026-03-13T15:29:42.410083+00:00", "event": "implementation_succeeded", "task_gid": "111", "task_name": "Fix login bug", "repo": "org/repo", "branch": "agent/asana-111-fix-login-bug", "pr_url": "https://github.com/org/repo/pull/1", "agent_id": "test-impl"}
+{"timestamp": "2026-03-13T15:29:42.412578+00:00", "event": "pr_review_posted", "repo": "org/repo", "pr_number": 42, "pr_title": "Add feature", "agent_id": "test-reviewer"}
+{"timestamp": "2026-03-13T15:29:42.413647+00:00", "event": "pr_skipped", "repo": "org/repo", "pr_number": 7, "reason": "self_authored", "agent_id": "test-reviewer"}
+{"timestamp": "2026-03-13T15:29:42.414791+00:00", "event": "pr_skipped", "repo": "org/repo", "pr_number": 5, "reason": "already_reviewed", "agent_id": "test-reviewer"}
+{"timestamp": "2026-03-13T15:29:42.416722+00:00", "event": "pr_review_posted", "repo": "org/repo", "pr_number": 1, "pr_title": "Fix bug", "agent_id": "test-reviewer"}
+{"timestamp": "2026-03-13T15:29:42.417933+00:00", "event": "pr_review_failed", "repo": "org/repo", "pr_number": 2, "error": "timeout", "agent_id": "test-reviewer"}
+{"timestamp": "2026-03-13T15:29:42.419170+00:00", "event": "pr_review_posted", "repo": "org/repo", "pr_number": 3, "pr_title": "Big PR", "agent_id": "test-reviewer"}
+{"timestamp": "2026-03-13T15:33:25.449938+00:00", "event": "pr_skipped", "repo": "SecureDevice-DevOps/IntellAgent", "pr_number": 665, "reason": "already_reviewed", "agent_id": "reviewer-intellagent"}
+{"timestamp": "2026-03-13T15:33:27.810301+00:00", "event": "pr_skipped", "repo": "SecureDevice-DevOps/IntellAgent", "pr_number": 837, "reason": "already_reviewed", "agent_id": "reviewer-intellagent"}
+{"timestamp": "2026-03-13T15:33:29.926062+00:00", "event": "pr_skipped", "repo": "SecureDevice-DevOps/IntellAgent", "pr_number": 854, "reason": "already_reviewed", "agent_id": "reviewer-intellagent"}
+{"timestamp": "2026-03-13T15:33:32.129374+00:00", "event": "pr_skipped", "repo": "SecureDevice-DevOps/IntellAgent", "pr_number": 859, "reason": "already_reviewed", "agent_id": "reviewer-intellagent"}
+{"timestamp": "2026-03-13T15:33:34.432042+00:00", "event": "pr_skipped", "repo": "SecureDevice-DevOps/IntellAgent", "pr_number": 862, "reason": "already_reviewed", "agent_id": "reviewer-intellagent"}
+{"timestamp": "2026-03-13T15:33:34.433353+00:00", "event": "pr_skipped", "repo": "SecureDevice-DevOps/IntellAgent", "pr_number": 863, "reason": "self_authored", "agent_id": "reviewer-intellagent"}
+{"timestamp": "2026-03-13T15:33:37.083707+00:00", "event": "pr_skipped", "repo": "SecureDevice-DevOps/IntellAgent", "pr_number": 864, "reason": "already_reviewed", "agent_id": "reviewer-intellagent"}
+{"timestamp": "2026-03-13T15:33:37.084934+00:00", "event": "pr_skipped", "repo": "SecureDevice-DevOps/IntellAgent", "pr_number": 865, "reason": "self_authored", "agent_id": "reviewer-intellagent"}
+{"timestamp": "2026-03-13T15:34:36.843722+00:00", "event": "pr_review_posted", "repo": "SecureDevice-DevOps/IntellAgent", "pr_number": 866, "pr_title": "Fix: Add ActiveResponder permissions for read and update in template_\u2026", "agent_id": "reviewer-intellagent"}

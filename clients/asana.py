@@ -1,3 +1,5 @@
+import asyncio
+
 import asana
 
 from exceptions import AsanaError
@@ -91,3 +93,14 @@ class AsanaClient:
             self._client.stories.create_story_for_task(task_id, {"text": text}, opt_pretty=True)
         except Exception as exc:
             raise AsanaError(f"Failed to add comment to task {task_id}: {exc}") from exc
+
+    # Async wrappers — delegate to sync methods via to_thread to unblock the event loop.
+
+    async def get_unassigned_tasks_async(self, project_id: str) -> list[dict]:
+        return await asyncio.to_thread(self.get_unassigned_tasks, project_id)
+
+    async def assign_task_async(self, task_id: str, user_gid: str | None) -> None:
+        await asyncio.to_thread(self.assign_task, task_id, user_gid)
+
+    async def add_comment_async(self, task_id: str, text: str) -> None:
+        await asyncio.to_thread(self.add_comment, task_id, text)

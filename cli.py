@@ -28,7 +28,12 @@ def _configure_logging() -> None:
 
 
 def _build_agents(type_filter: str | None = None):
-    """Instantiate agents from config, optionally filtering by type."""
+    """Instantiate agents from config, optionally filtering by type.
+
+    Supports ``replicas`` (default 1) per agent config entry.  Each replica
+    gets a unique id (``{base_id}-{i}``) and a staggered ``initial_delay``
+    so that replicas don't all fire at the same instant.
+    """
     github = GitHubClient(config.GITHUB_TOKEN)
     asana = AsanaClient(config.ASANA_TOKEN)
 
@@ -41,17 +46,27 @@ def _build_agents(type_filter: str | None = None):
         if cls is None:
             logging.warning(f"Unknown agent type: {agent_type!r}, skipping")
             continue
-        agent = cls(
-            agent_id=agent_cfg["id"],
-            config=agent_cfg,
-            github=github,
-            asana=asana,
-        )
-        agents.append((agent, agent_cfg.get("interval", agent.default_interval)))
+
+        replicas = agent_cfg.get("replicas", 1)
+
+        for i in range(replicas):
+            agent_id = agent_cfg["id"] if replicas == 1 else f"{agent_cfg['id']}-{i}"
+            agent = cls(
+                agent_id=agent_id,
+                config=agent_cfg,
+                github=github,
+                asana=asana,
+            )
+            interval = agent_cfg.get("interval", agent.default_interval)
+            initial_delay = i * (interval / replicas) if replicas > 1 else 0
+            agents.append((agent, interval, initial_delay))
     return agents
 
 
-async def _agent_loop(agent, interval: int) -> None:
+async def _agent_loop(agent, interval: int, initial_delay: float = 0) -> None:
+    if initial_delay > 0:
+        logging.info(f"Agent {agent.agent_id!r} waiting {initial_delay:.0f}s before first run")
+        await asyncio.sleep(initial_delay)
     logging.info(f"Agent {agent.agent_id!r} loop started (every {interval}s)")
     while True:
         try:
@@ -74,7 +89,7 @@ async def _start() -> None:
         return
 
     logging.info(f"sweat service starting — {len(agents)} agent(s)")
-    tasks = [asyncio.create_task(_agent_loop(agent, interval)) for agent, interval in agents]
+    tasks = [asyncio.create_task(_agent_loop(agent, interval, delay)) for agent, interval, delay in agents]
     try:
         await stop
     finally:
@@ -86,7 +101,7 @@ async def _start() -> None:
 
 async def _run_once(type_filter: str) -> None:
     agents = _build_agents(type_filter=type_filter)
-    for agent, _ in agents:
+    for agent, _interval, _delay in agents:
         await agent.run_once()
 
 

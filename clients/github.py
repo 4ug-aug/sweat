@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import tempfile
 
@@ -132,3 +133,40 @@ class GitHubClient:
         self, repo: str, pr_number: int, body: str, event: str = "COMMENT"
     ) -> None:
         self._gh.get_repo(repo).get_pull(pr_number).create_review(body=body, event=event)
+
+    # Async wrappers — delegate to sync methods via to_thread to unblock the event loop.
+
+    async def get_repo_summary_async(self, repo: str) -> str:
+        return await asyncio.to_thread(self.get_repo_summary, repo)
+
+    async def clone_repo_async(self, repo: str) -> str:
+        return await asyncio.to_thread(self.clone_repo, repo)
+
+    async def create_branch_async(self, repo_path: str, branch_name: str) -> None:
+        await asyncio.to_thread(self.create_branch, repo_path, branch_name)
+
+    async def commit_and_push_async(self, repo_path: str, branch_name: str, message: str) -> None:
+        await asyncio.to_thread(self.commit_and_push, repo_path, branch_name, message)
+
+    async def create_pr_async(self, repo: str, branch: str, title: str, body: str) -> str:
+        return await asyncio.to_thread(self.create_pr, repo, branch, title, body)
+
+    async def get_bot_login_async(self) -> str:
+        return await asyncio.to_thread(self.get_bot_login)
+
+    async def get_open_prs_async(self, repo: str) -> list[dict]:
+        return await asyncio.to_thread(self.get_open_prs, repo)
+
+    async def has_bot_reviewed_async(self, repo: str, pr_number: int, bot_login: str) -> bool:
+        return await asyncio.to_thread(self.has_bot_reviewed, repo, pr_number, bot_login)
+
+    async def get_pr_metadata_async(self, repo: str, pr_number: int) -> dict:
+        return await asyncio.to_thread(self.get_pr_metadata, repo, pr_number)
+
+    async def get_pr_diff_async(self, repo: str, pr_number: int) -> str:
+        return await asyncio.to_thread(self.get_pr_diff, repo, pr_number)
+
+    async def post_pr_review_async(
+        self, repo: str, pr_number: int, body: str, event: str = "COMMENT"
+    ) -> None:
+        await asyncio.to_thread(self.post_pr_review, repo, pr_number, body, event)

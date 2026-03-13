@@ -15,6 +15,7 @@ AGENTS = [
     {
         "id": "impl-intellagent",
         "type": "implementer",
+        "replicas": 2,
         "interval": 3600,
         "asana_assignee_gid": os.environ["ASANA_ASSIGNEE_GID"],
         "projects": [

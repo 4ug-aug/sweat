@@ -23,10 +23,10 @@ The `claude_agent_sdk` runs the `claude` CLI as a subprocess. When the active Cl
 
 **Fix**
 
-Run Claude Code interactively and log in under the correct account:
+Run Claude Code interactively and log in under the correct account using the `login` command:
 
 ```bash
-claude
+claude login
 ```
 
 Follow the login prompt. Once authenticated, re-run sweat — the SDK will pick up the new session automatically.
