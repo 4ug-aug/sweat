@@ -39,16 +39,21 @@ def _passes_filters(task: dict, field_filters: dict, field_names: dict) -> bool:
         value = _extract_field(task, field_name)
         if isinstance(condition, list):
             if value not in condition:
+                print(f"    skip [{task['name']}]: {field_name} = {value!r} not in {condition}")
                 return False
         elif isinstance(condition, dict):
             if value is None:
+                print(f"    skip [{task['name']}]: {field_name} is missing")
                 return False
             num = _to_minutes(value)
             if num is None:
+                print(f"    skip [{task['name']}]: {field_name} = {value!r} is not a duration")
                 return False
             if "max" in condition and num > condition["max"]:
+                print(f"    skip [{task['name']}]: {field_name} = {num}m > max {condition['max']}m")
                 return False
             if "min" in condition and num < condition["min"]:
+                print(f"    skip [{task['name']}]: {field_name} = {num}m < min {condition['min']}m")
                 return False
     return True
 
