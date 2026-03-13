@@ -3,6 +3,8 @@ import logging
 
 from claude_agent_sdk import ClaudeAgentOptions, query
 
+from exceptions import TaskSelectorError
+
 _SYSTEM = """You are an AI agent that evaluates software tasks for feasibility.
 Given a list of tasks and context about the codebase, you pick the ONE task you are
 most confident you can implement in code. Use the repo context to assess whether the
@@ -41,11 +43,14 @@ async def select_task(tasks: list[dict], repo_context: str = "") -> dict | None:
     prompt = f"{_SYSTEM}{context_section}\n\nHere are the available tasks:\n\n{task_list}\n\nWhich one should I work on? Reply with JSON only."
 
     text = ""
-    async for message in query(prompt=prompt, options=ClaudeAgentOptions()):
-        if hasattr(message, "content"):
-            for block in message.content:
-                if hasattr(block, "text"):
-                    text = block.text
+    try:
+        async for message in query(prompt=prompt, options=ClaudeAgentOptions()):
+            if hasattr(message, "content"):
+                for block in message.content:
+                    if hasattr(block, "text"):
+                        text = block.text
+    except Exception as exc:
+        raise TaskSelectorError(f"Claude agent failed during task selection: {exc}") from exc
 
     if not text:
         return None

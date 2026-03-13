@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from claude_agent_sdk import query, ClaudeAgentOptions
 
+from exceptions import AgentError
+
 
 @dataclass
 class AgentResult:
@@ -22,4 +24,4 @@ async def run_agent(repo_path: str | None, prompt: str) -> AgentResult:
                 summary_parts.append(str(message.result))
         return AgentResult(success=True, summary=" ".join(summary_parts))
     except Exception as exc:
-        return AgentResult(success=False, error=str(exc))
+        raise AgentError(f"Agent failed: {exc}") from exc

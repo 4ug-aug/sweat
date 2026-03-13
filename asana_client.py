@@ -1,6 +1,7 @@
 import asana
 
 import config
+from exceptions import AsanaError
 
 
 class _Client:
@@ -57,37 +58,46 @@ def _client() -> _Client:
 
 
 def get_unassigned_tasks(project_id: str) -> list[dict]:
-    client = _client()
-    print(f"Getting tasks for project: {project_id}")
-    task_refs = client.tasks.get_tasks_for_project(
-        project_id,
-        opt_fields="gid,name,completed",
-        opt_pretty=True,
-    )
-    tasks = []
-    for ref in task_refs:
-        if ref.get("completed"):
-            continue
-        task = client.tasks.get_task(
-            ref["gid"], opt_fields="gid,name,notes,assignee,custom_fields"
+    try:
+        client = _client()
+        print(f"Getting tasks for project: {project_id}")
+        task_refs = client.tasks.get_tasks_for_project(
+            project_id,
+            opt_fields="gid,name,completed",
+            opt_pretty=True,
         )
-        if task.get("assignee") is None:
-            fields = " - ".join(
-                cf["display_value"]
-                for cf in task.get("custom_fields", [])
-                if cf.get("display_value")
+        tasks = []
+        for ref in task_refs:
+            if ref.get("completed"):
+                continue
+            task = client.tasks.get_task(
+                ref["gid"], opt_fields="gid,name,notes,assignee,custom_fields"
             )
-            suffix = f" - {fields}" if fields else ""
-            print(f"  {task['gid']} - {task['name']}{suffix}")
-            tasks.append(task)
-    return tasks
+            if task.get("assignee") is None:
+                fields = " - ".join(
+                    cf["display_value"]
+                    for cf in task.get("custom_fields", [])
+                    if cf.get("display_value")
+                )
+                suffix = f" - {fields}" if fields else ""
+                print(f"  {task['gid']} - {task['name']}{suffix}")
+                tasks.append(task)
+        return tasks
+    except Exception as exc:
+        raise AsanaError(f"Failed to fetch tasks for project {project_id}: {exc}") from exc
 
 
 def assign_task(task_id: str, user_gid: str) -> None:
-    client = _client()
-    client.tasks.update_task(task_id, {"assignee": user_gid}, opt_pretty=True)
+    try:
+        client = _client()
+        client.tasks.update_task(task_id, {"assignee": user_gid}, opt_pretty=True)
+    except Exception as exc:
+        raise AsanaError(f"Failed to assign task {task_id}: {exc}") from exc
 
 
 def add_comment(task_id: str, text: str) -> None:
-    client = _client()
-    client.stories.create_story_for_task(task_id, {"text": text}, opt_pretty=True)
+    try:
+        client = _client()
+        client.stories.create_story_for_task(task_id, {"text": text}, opt_pretty=True)
+    except Exception as exc:
+        raise AsanaError(f"Failed to add comment to task {task_id}: {exc}") from exc

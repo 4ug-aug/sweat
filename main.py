@@ -5,8 +5,9 @@ import sys
 
 import audit
 import config
-from agent import run_agent
+from agent import AgentResult, run_agent
 from asana_client import add_comment, assign_task, get_unassigned_tasks
+from exceptions import AgentError, SweatError
 from github_client import clone_repo, commit_and_push, create_branch, create_pr, get_repo_summary
 from prompts.task_prompt import build_agent_prompt
 from task_filter import filter_and_rank_tasks
@@ -60,7 +61,10 @@ async def run(dry_run: bool = False) -> None:
     try:
         create_branch(repo_path, branch)
         prompt = build_agent_prompt(task, repo)
-        result = await run_agent(repo_path, prompt)
+        try:
+            result = await run_agent(repo_path, prompt)
+        except AgentError as exc:
+            result = AgentResult(success=False, error=str(exc))
 
         if not result.success:
             assign_task(task["gid"], None)  # unassign
@@ -87,4 +91,8 @@ async def run(dry_run: bool = False) -> None:
 
 if __name__ == "__main__":
     dry_run = "--dry-run" in sys.argv
-    asyncio.run(run(dry_run=dry_run))
+    try:
+        asyncio.run(run(dry_run=dry_run))
+    except SweatError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
