@@ -61,11 +61,13 @@ def get_unassigned_tasks(project_id: str) -> list[dict]:
     print(f"Getting tasks for project: {project_id}")
     task_refs = client.tasks.get_tasks_for_project(
         project_id,
-        opt_fields="gid,name",
+        opt_fields="gid,name,completed",
         opt_pretty=True,
     )
     tasks = []
     for ref in task_refs:
+        if ref.get("completed"):
+            continue
         print(f"Getting task: {ref['gid']} - {ref['name']}")
         task = client.tasks.get_task(
             ref["gid"], opt_fields="gid,name,notes,assignee,custom_fields"

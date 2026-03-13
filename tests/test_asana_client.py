@@ -8,8 +8,8 @@ def test_get_unassigned_tasks_returns_list(mock_client_class):
     mock_client = MagicMock()
     mock_client_class.access_token.return_value = mock_client
     mock_client.tasks.get_tasks_for_project.return_value = [
-        {"gid": "111", "name": "Fix login bug", "notes": "Users can't log in"},
-        {"gid": "222", "name": "Add dark mode", "notes": ""},
+        {"gid": "111", "name": "Fix login bug", "notes": "Users can't log in", "completed": False},
+        {"gid": "222", "name": "Add dark mode", "notes": "", "completed": False},
     ]
     mock_client.tasks.get_task.side_effect = lambda gid, **_: {
         "gid": gid,
@@ -30,7 +30,7 @@ def test_get_unassigned_tasks_filters_assigned(mock_client_class):
     mock_client = MagicMock()
     mock_client_class.access_token.return_value = mock_client
     mock_client.tasks.get_tasks_for_project.return_value = [
-        {"gid": "111", "name": "Fix login bug"},
+        {"gid": "111", "name": "Fix login bug", "completed": False},
     ]
     mock_client.tasks.get_task.return_value = {
         "gid": "111",
@@ -42,6 +42,28 @@ def test_get_unassigned_tasks_filters_assigned(mock_client_class):
     tasks = get_unassigned_tasks("PROJECT_GID")
 
     assert tasks == []
+
+
+@patch("asana_client._Client")
+def test_get_unassigned_tasks_filters_completed(mock_client_class):
+    mock_client = MagicMock()
+    mock_client_class.access_token.return_value = mock_client
+    mock_client.tasks.get_tasks_for_project.return_value = [
+        {"gid": "111", "name": "Done task", "completed": True},
+        {"gid": "222", "name": "Open task", "completed": False},
+    ]
+    mock_client.tasks.get_task.return_value = {
+        "gid": "222",
+        "name": "Open task",
+        "notes": "",
+        "assignee": None,
+    }
+
+    tasks = get_unassigned_tasks("PROJECT_GID")
+
+    assert len(tasks) == 1
+    assert tasks[0]["gid"] == "222"
+    mock_client.tasks.get_task.assert_called_once()  # completed task never fetched
 
 
 @patch("asana_client._Client")
