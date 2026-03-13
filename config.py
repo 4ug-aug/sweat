@@ -23,10 +23,9 @@ PROJECTS = [
             "domain": "Domain",
         },
         "field_filters": {
-            "work_type": ["Bug", "Chore"],  # enum: value must be in list
+            "work_type": ["Bug / Defect", "Maintenance"],
             "domain": ["Backend"],
-            "estimated_time": {"max": 4},  # numeric: ≤ 4
-            "priority": {"min": 1, "max": 3},  # numeric range
+            "estimated_time": {"max": 240},  # ≤ 4 hours in minutes
         },
         "priority_order": ["Urgent", "High", "Medium", "Low"],
         "max_tasks_for_selector": 15,

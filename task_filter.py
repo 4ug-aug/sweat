@@ -47,7 +47,7 @@ def _passes_filters(task: dict, field_filters: dict, field_names: dict) -> bool:
                 return False
             num = _to_minutes(value)
             if num is None:
-                print(f"    skip [{task['name']}]: {field_name} = {value!r} is not a duration")
+                print(f"    skip [{task['name']}]: {field_name} = {value!r} could not be parsed as a number or duration")
                 return False
             if "max" in condition and num > condition["max"]:
                 print(f"    skip [{task['name']}]: {field_name} = {num}m > max {condition['max']}m")
