@@ -50,6 +50,12 @@ async def select_task(tasks: list[dict], repo_context: str = "") -> dict | None:
                     if hasattr(block, "text"):
                         text = block.text
     except Exception as exc:
+        msg = str(exc)
+        if "exit code 1" in msg or "exit code: 1" in msg:
+            raise TaskSelectorError(
+                "Claude CLI exited with code 1 — you may need to re-authenticate. "
+                "Run `claude` interactively and log in, then retry."
+            ) from exc
         raise TaskSelectorError(f"Claude agent failed during task selection: {exc}") from exc
 
     if not text:

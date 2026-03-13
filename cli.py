@@ -121,6 +121,8 @@ def main() -> None:
     start.add_argument("--review-interval", type=int, default=60, metavar="SECONDS",
                        help="How often to run the PR reviewer loop (default: 60)")
 
+    sub.add_parser("review", help="Run the PR reviewer once and exit")
+
     log_cmd = sub.add_parser("log", help="View recent audit log entries")
     log_cmd.add_argument("--last", type=int, default=20, metavar="N",
                          help="Number of recent entries to show (default: 20)")
@@ -128,6 +130,8 @@ def main() -> None:
     args = parser.parse_args()
     if args.command == "start":
         asyncio.run(_start(args.implement_interval, args.review_interval))
+    elif args.command == "review":
+        asyncio.run(poll_and_review())
     elif args.command == "log":
         _cmd_log(args.last)
     else:

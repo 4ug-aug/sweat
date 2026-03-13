@@ -24,4 +24,10 @@ async def run_agent(repo_path: str | None, prompt: str) -> AgentResult:
                 summary_parts.append(str(message.result))
         return AgentResult(success=True, summary=" ".join(summary_parts))
     except Exception as exc:
+        msg = str(exc)
+        if "exit code 1" in msg or "exit code: 1" in msg:
+            raise AgentError(
+                "Claude CLI exited with code 1 — you may need to re-authenticate. "
+                "Run `claude` interactively and log in, then retry."
+            ) from exc
         raise AgentError(f"Agent failed: {exc}") from exc
