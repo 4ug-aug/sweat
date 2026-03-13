@@ -68,11 +68,17 @@ def get_unassigned_tasks(project_id: str) -> list[dict]:
     for ref in task_refs:
         if ref.get("completed"):
             continue
-        print(f"Getting task: {ref['gid']} - {ref['name']}")
         task = client.tasks.get_task(
             ref["gid"], opt_fields="gid,name,notes,assignee,custom_fields"
         )
         if task.get("assignee") is None:
+            fields = " - ".join(
+                cf["display_value"]
+                for cf in task.get("custom_fields", [])
+                if cf.get("display_value")
+            )
+            suffix = f" - {fields}" if fields else ""
+            print(f"  {task['gid']} - {task['name']}{suffix}")
             tasks.append(task)
     return tasks
 
