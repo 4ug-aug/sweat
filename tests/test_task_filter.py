@@ -1,6 +1,26 @@
 import pytest
 
-from task_filter import filter_and_rank_tasks
+from task_filter import filter_and_rank_tasks, _to_minutes
+
+
+# --- Duration parsing tests ---
+
+@pytest.mark.parametrize("value,expected", [
+    ("90", 90.0),
+    ("30m", 30.0),
+    ("45m", 45.0),
+    ("2h", 120.0),
+    ("2h 00m", 120.0),
+    ("1h 30m", 90.0),
+    ("5h 00m", 300.0),
+])
+def test_to_minutes_valid(value, expected):
+    assert _to_minutes(value) == expected
+
+
+@pytest.mark.parametrize("value", ["ABT", "TBD", "M", "", None])
+def test_to_minutes_unparseable(value):
+    assert _to_minutes(value) is None
 
 
 def _task(gid, work_type=None, estimated_time=None, priority=None, domain=None):
@@ -49,15 +69,15 @@ def test_enum_filter_excludes_missing_field():
 
 
 def test_numeric_filter_max():
-    tasks = [_task("1", estimated_time="1"), _task("2", estimated_time="3")]
-    cfg = {"field_names": FIELD_NAMES, "field_filters": {"estimated_time": {"max": 2}}}
+    tasks = [_task("1", estimated_time="1h 00m"), _task("2", estimated_time="3h 00m")]
+    cfg = {"field_names": FIELD_NAMES, "field_filters": {"estimated_time": {"max": 120}}}
     result = filter_and_rank_tasks(tasks, cfg)
     assert [t["gid"] for t in result] == ["1"]
 
 
 def test_numeric_filter_non_numeric_excluded():
-    tasks = [_task("1", estimated_time="M")]
-    cfg = {"field_names": FIELD_NAMES, "field_filters": {"estimated_time": {"max": 2}}}
+    tasks = [_task("1", estimated_time="ABT")]
+    cfg = {"field_names": FIELD_NAMES, "field_filters": {"estimated_time": {"max": 120}}}
     result = filter_and_rank_tasks(tasks, cfg)
     assert result == []
 

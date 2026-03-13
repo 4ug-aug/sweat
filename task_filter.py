@@ -1,3 +1,29 @@
+import re
+
+
+def _to_minutes(value: str) -> float | None:
+    """Convert a duration string to minutes. Returns None if unparseable.
+
+    Supports:
+      - Plain numbers: "90" → 90.0
+      - Hours + minutes: "2h 00m", "1h 30m" → 120.0, 90.0
+      - Minutes only: "30m", "45m" → 30.0, 45.0
+      - Hours only: "2h" → 120.0
+    """
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        pass
+    if not isinstance(value, str):
+        return None
+    m = re.fullmatch(r"(?:(\d+)h\s*)?(?:(\d+)m)?", value.strip())
+    if m and (m.group(1) or m.group(2)):
+        hours = int(m.group(1) or 0)
+        mins = int(m.group(2) or 0)
+        return float(hours * 60 + mins)
+    return None
+
+
 def _extract_field(task: dict, field_name: str) -> str | None:
     for cf in task.get("custom_fields", []):
         if cf.get("name") == field_name:
@@ -17,9 +43,8 @@ def _passes_filters(task: dict, field_filters: dict, field_names: dict) -> bool:
         elif isinstance(condition, dict):
             if value is None:
                 return False
-            try:
-                num = float(value)
-            except (ValueError, TypeError):
+            num = _to_minutes(value)
+            if num is None:
                 return False
             if "max" in condition and num > condition["max"]:
                 return False
