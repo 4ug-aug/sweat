@@ -28,3 +28,20 @@
 {"timestamp": "2026-03-13T07:15:52.290786+00:00", "event": "pr_skipped", "repo": "4ug-aug/sweat", "pr_number": 1, "reason": "self_authored"}
 {"timestamp": "2026-03-13T07:16:33.191079+00:00", "event": "no_task_found"}
 {"timestamp": "2026-03-13T07:16:35.240607+00:00", "event": "pr_skipped", "repo": "4ug-aug/sweat", "pr_number": 1, "reason": "self_authored"}
+{"timestamp": "2026-03-13T07:53:17.623639+00:00", "event": "no_task_found"}
+{"timestamp": "2026-03-13T07:53:17.630575+00:00", "event": "pr_skipped", "repo": "org/repo", "pr_number": 7, "reason": "self_authored"}
+{"timestamp": "2026-03-13T07:53:17.631225+00:00", "event": "pr_skipped", "repo": "org/repo", "pr_number": 5, "reason": "already_reviewed"}
+{"timestamp": "2026-03-13T07:53:17.632612+00:00", "event": "pr_review_posted", "repo": "org/repo", "pr_number": 1, "pr_title": "Fix bug"}
+{"timestamp": "2026-03-13T07:53:17.633256+00:00", "event": "pr_review_failed", "repo": "org/repo", "pr_number": 2, "error": "timeout"}
+{"timestamp": "2026-03-13T07:53:17.634144+00:00", "event": "pr_review_posted", "repo": "org/repo", "pr_number": 3, "pr_title": "Big PR"}
+{"timestamp": "2026-03-13T07:53:44.769844+00:00", "event": "task_selected", "task_gid": "111", "task_name": "Fix login bug", "repo": "4ug-aug/sweat"}
+{"timestamp": "2026-03-13T07:53:44.770192+00:00", "event": "implementation_succeeded", "task_gid": "111", "task_name": "Fix login bug", "repo": "4ug-aug/sweat", "branch": "agent/asana-111-fix-login-bug", "pr_url": "https://github.com/augusttollerup/repo/pull/1"}
+{"timestamp": "2026-03-13T07:53:44.770955+00:00", "event": "no_task_found"}
+{"timestamp": "2026-03-13T07:53:44.771629+00:00", "event": "task_selected", "task_gid": "111", "task_name": "Fix login bug", "repo": "4ug-aug/sweat"}
+{"timestamp": "2026-03-13T07:53:44.772603+00:00", "event": "task_selected", "task_gid": "111", "task_name": "Fix login bug", "repo": "4ug-aug/sweat"}
+{"timestamp": "2026-03-13T07:53:44.772740+00:00", "event": "implementation_failed", "task_gid": "111", "task_name": "Fix login bug", "repo": "4ug-aug/sweat", "error": "Agent crashed"}
+{"timestamp": "2026-03-13T07:53:44.774169+00:00", "event": "pr_skipped", "repo": "org/repo", "pr_number": 7, "reason": "self_authored"}
+{"timestamp": "2026-03-13T07:53:44.774765+00:00", "event": "pr_skipped", "repo": "org/repo", "pr_number": 5, "reason": "already_reviewed"}
+{"timestamp": "2026-03-13T07:53:44.775992+00:00", "event": "pr_review_posted", "repo": "org/repo", "pr_number": 1, "pr_title": "Fix bug"}
+{"timestamp": "2026-03-13T07:53:44.776830+00:00", "event": "pr_review_failed", "repo": "org/repo", "pr_number": 2, "error": "timeout"}
+{"timestamp": "2026-03-13T07:53:44.777603+00:00", "event": "pr_review_posted", "repo": "org/repo", "pr_number": 3, "pr_title": "Big PR"}

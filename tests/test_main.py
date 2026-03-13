@@ -3,6 +3,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from main import run
 
+# Bypass task filtering in all main.py tests — filtering is covered by test_task_filter.py
+pytestmark = pytest.mark.usefixtures("passthrough_filter")
+
+
+@pytest.fixture(autouse=True)
+def passthrough_filter():
+    with patch("main.filter_and_rank_tasks", side_effect=lambda tasks, _cfg: tasks):
+        yield
+
 
 @patch("main.add_comment")
 @patch("main.create_pr")
