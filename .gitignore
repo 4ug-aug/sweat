@@ -16,6 +16,7 @@ bin-release/
 .DS_Store
 __pycache__/
 .python-version
+audit.jsonl
 
 # Project files, i.e. `.project`, `.actionScriptProperties` and `.flexProperties`
 # should NOT be excluded as they contain compiler settings and other important
