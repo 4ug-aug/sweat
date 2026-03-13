@@ -21,6 +21,10 @@ class _Client:
     def stories(self):
         return _StoriesProxy(self._api_client)
 
+    @property
+    def time_tracking(self):
+        return _TimeTrackingProxy(self._api_client)
+
 
 class _TasksProxy:
     def __init__(self, api_client):
@@ -48,6 +52,14 @@ class _StoriesProxy:
 
     def create_story_for_task(self, task_id, body, opt_pretty=False):
         return self._api.create_story_for_task({"data": body}, task_id, {})
+
+
+class _TimeTrackingProxy:
+    def __init__(self, api_client):
+        self._api = asana.TimeTrackingEntriesApi(api_client)
+
+    def create_time_tracking_entry(self, task_gid, body):
+        return self._api.create_time_tracking_entry({"data": body}, task_gid, {})
 
 
 class AsanaClient:
@@ -94,6 +106,21 @@ class AsanaClient:
         except Exception as exc:
             raise AsanaError(f"Failed to add comment to task {task_id}: {exc}") from exc
 
+    def add_time_tracking_entry(self, task_id: str, duration_minutes: int, entered_on: str) -> None:
+        """Create a time tracking entry on a task.
+
+        Args:
+            task_id: The Asana task GID.
+            duration_minutes: Time spent, in whole minutes.
+            entered_on: Date string in YYYY-MM-DD format.
+        """
+        try:
+            self._client.time_tracking.create_time_tracking_entry(
+                task_id, {"duration_minutes": duration_minutes, "entered_on": entered_on}
+            )
+        except Exception as exc:
+            raise AsanaError(f"Failed to add time tracking entry to task {task_id}: {exc}") from exc
+
     # Async wrappers — delegate to sync methods via to_thread to unblock the event loop.
 
     async def get_unassigned_tasks_async(self, project_id: str) -> list[dict]:
@@ -104,3 +131,6 @@ class AsanaClient:
 
     async def add_comment_async(self, task_id: str, text: str) -> None:
         await asyncio.to_thread(self.add_comment, task_id, text)
+
+    async def add_time_tracking_entry_async(self, task_id: str, duration_minutes: int, entered_on: str) -> None:
+        await asyncio.to_thread(self.add_time_tracking_entry, task_id, duration_minutes, entered_on)

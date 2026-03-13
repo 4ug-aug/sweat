@@ -95,3 +95,16 @@ def test_add_comment_calls_api(mock_client_class):
     mock_client.stories.create_story_for_task.assert_called_once_with(
         "TASK_GID", {"text": "Hello from agent"}, opt_pretty=True
     )
+
+
+@patch("clients.asana._Client")
+def test_add_time_tracking_entry_calls_api(mock_client_class):
+    mock_client = MagicMock()
+    mock_client_class.return_value = mock_client
+
+    client = AsanaClient("test-token")
+    client.add_time_tracking_entry("TASK_GID", 42, "2026-03-13")
+
+    mock_client.time_tracking.create_time_tracking_entry.assert_called_once_with(
+        "TASK_GID", {"duration_minutes": 42, "entered_on": "2026-03-13"}
+    )

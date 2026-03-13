@@ -42,6 +42,18 @@ async def test_asana_add_comment_async(mock_client_class):
     client.add_comment.assert_called_once_with("T1", "hello")
 
 
+@patch("clients.asana._Client")
+async def test_asana_add_time_tracking_entry_async(mock_client_class):
+    from clients.asana import AsanaClient
+
+    client = AsanaClient("test-token")
+    client.add_time_tracking_entry = MagicMock()
+
+    await client.add_time_tracking_entry_async("T1", 30, "2026-03-13")
+
+    client.add_time_tracking_entry.assert_called_once_with("T1", 30, "2026-03-13")
+
+
 @patch("clients.github.Github")
 async def test_github_clone_repo_async(mock_github_class):
     from clients.github import GitHubClient

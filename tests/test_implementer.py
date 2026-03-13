@@ -1,3 +1,4 @@
+from datetime import date
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -41,6 +42,7 @@ def _make_agent(dry_run=False):
     asana.get_unassigned_tasks_async = AsyncMock()
     asana.assign_task_async = AsyncMock()
     asana.add_comment_async = AsyncMock()
+    asana.add_time_tracking_entry_async = AsyncMock()
     github.get_repo_summary_async = AsyncMock()
     github.clone_repo_async = AsyncMock()
     github.create_branch_async = AsyncMock()
@@ -74,6 +76,7 @@ async def test_run_once_full_flow(mock_select, mock_run_agent, mock_filter):
     mock_run_agent.assert_called_once()
     agent.github.create_pr_async.assert_called_once()
     assert agent.asana.add_comment_async.call_count == 2
+    agent.asana.add_time_tracking_entry_async.assert_called_once()
     mock_select.assert_called_once_with([_TASK], repo_context="## File tree\nfoo.py")
 
 
@@ -118,6 +121,7 @@ async def test_run_once_posts_error_on_agent_failure(mock_select, mock_run_agent
     second_call_args = agent.asana.assign_task_async.call_args_list[1]
     assert second_call_args[0][1] is None
     assert agent.asana.add_comment_async.call_count == 2
+    agent.asana.add_time_tracking_entry_async.assert_called_once()
     agent.github.create_pr_async.assert_not_called()
 
 
@@ -156,3 +160,44 @@ async def test_claim_released_after_run(mock_select, mock_run_agent, mock_filter
 
     claims = TaskClaims.get()
     assert await claims.is_claimed("111") is False
+
+
+@patch("agents.implementer.filter_and_rank_tasks", side_effect=lambda tasks, _cfg: tasks)
+@patch("agents.implementer.run_agent", new_callable=AsyncMock)
+@patch("agents.implementer.select_task", new_callable=AsyncMock)
+async def test_time_tracking_entry_logged_with_today(mock_select, mock_run_agent, mock_filter):
+    """Time tracking entry uses today's date and at least 1 minute."""
+    agent = _make_agent()
+    agent.asana.get_unassigned_tasks_async.return_value = [_TASK]
+    agent.github.get_repo_summary_async.return_value = ""
+    agent.github.clone_repo_async.return_value = "/tmp/sweat_abc"
+    agent.github.create_pr_async.return_value = "https://github.com/org/repo/pull/1"
+    mock_select.return_value = _TASK
+    mock_run_agent.return_value = MagicMock(success=True, summary="done")
+
+    await agent.run_once()
+
+    call_args = agent.asana.add_time_tracking_entry_async.call_args
+    assert call_args[0][0] == "111"
+    assert call_args[0][1] >= 1  # at least 1 minute
+    assert call_args[0][2] == date.today().isoformat()
+
+
+@patch("agents.implementer.filter_and_rank_tasks", side_effect=lambda tasks, _cfg: tasks)
+@patch("agents.implementer.run_agent", new_callable=AsyncMock)
+@patch("agents.implementer.select_task", new_callable=AsyncMock)
+async def test_time_tracking_failure_does_not_crash_agent(mock_select, mock_run_agent, mock_filter):
+    """If the time tracking API call fails, the agent should still complete."""
+    agent = _make_agent()
+    agent.asana.get_unassigned_tasks_async.return_value = [_TASK]
+    agent.github.get_repo_summary_async.return_value = ""
+    agent.github.clone_repo_async.return_value = "/tmp/sweat_abc"
+    agent.github.create_pr_async.return_value = "https://github.com/org/repo/pull/1"
+    agent.asana.add_time_tracking_entry_async.side_effect = Exception("API error")
+    mock_select.return_value = _TASK
+    mock_run_agent.return_value = MagicMock(success=True, summary="done")
+
+    await agent.run_once()
+
+    # PR should still be created despite time tracking failure
+    agent.github.create_pr_async.assert_called_once()
