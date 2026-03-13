@@ -1,46 +1,55 @@
 import base64
 import os
-import tempfile
 from unittest.mock import MagicMock, patch
+
 import pytest
-from github_client import clone_repo, create_branch, commit_and_push, create_pr, get_repo_summary
+
+from clients.github import GitHubClient
 
 
-@patch("github_client.tempfile.mkdtemp")
-@patch("github_client.git.Repo.clone_from")
-def test_clone_repo_returns_path(mock_clone, mock_mkdtemp):
+@patch("clients.github.tempfile.mkdtemp")
+@patch("clients.github.git.Repo.clone_from")
+@patch("clients.github.Github")
+def test_clone_repo_returns_path(mock_github_class, mock_clone, mock_mkdtemp):
     mock_clone.return_value = MagicMock()
     mock_mkdtemp.return_value = "/tmp/sweat_test123"
-    path = clone_repo("augusttollerup/myrepo")
+    client = GitHubClient("test-token")
+
+    path = client.clone_repo("augusttollerup/myrepo")
+
     assert os.path.isabs(path)
     assert mock_clone.called
     url = mock_clone.call_args[0][0]
     assert "augusttollerup/myrepo" in url
 
 
-@patch("github_client.git.Repo")
-def test_create_branch(mock_repo_class):
+@patch("clients.github.git.Repo")
+@patch("clients.github.Github")
+def test_create_branch(mock_github_class, mock_repo_class):
     mock_repo = MagicMock()
     mock_repo_class.return_value = mock_repo
+    client = GitHubClient("test-token")
 
-    create_branch("/tmp/somerepo", "agent/asana-111-fix-login")
+    client.create_branch("/tmp/somerepo", "agent/asana-111-fix-login")
 
     mock_repo.git.checkout.assert_called_once_with("-b", "agent/asana-111-fix-login")
 
 
-@patch("github_client.git.Repo")
-def test_commit_and_push(mock_repo_class):
+@patch("clients.github.git.Repo")
+@patch("clients.github.Github")
+def test_commit_and_push(mock_github_class, mock_repo_class):
     mock_repo = MagicMock()
     mock_repo_class.return_value = mock_repo
+    client = GitHubClient("test-token")
 
-    commit_and_push("/tmp/somerepo", "agent/asana-111-fix-login", "fix: resolve login bug")
+    client.commit_and_push("/tmp/somerepo", "agent/asana-111-fix-login", "fix: resolve login bug")
 
     mock_repo.git.add.assert_called_once_with("--all")
     mock_repo.index.commit.assert_called_once_with("fix: resolve login bug")
     mock_repo.git.push.assert_called_once_with("--set-upstream", "origin", "agent/asana-111-fix-login")
 
 
-@patch("github_client.Github")
+@patch("clients.github.Github")
 def test_create_pr_returns_url(mock_github_class):
     mock_gh = MagicMock()
     mock_github_class.return_value = mock_gh
@@ -49,8 +58,9 @@ def test_create_pr_returns_url(mock_github_class):
     mock_pr = MagicMock()
     mock_pr.html_url = "https://github.com/augusttollerup/myrepo/pull/42"
     mock_repo.create_pull.return_value = mock_pr
+    client = GitHubClient("test-token")
 
-    url = create_pr(
+    url = client.create_pr(
         repo="augusttollerup/myrepo",
         branch="agent/asana-111-fix-login",
         title="fix: resolve login bug",
@@ -66,7 +76,7 @@ def test_create_pr_returns_url(mock_github_class):
     )
 
 
-@patch("github_client.Github")
+@patch("clients.github.Github")
 def test_get_repo_summary_includes_tree_and_readme(mock_github_class):
     mock_gh = MagicMock()
     mock_github_class.return_value = mock_gh
@@ -74,7 +84,6 @@ def test_get_repo_summary_includes_tree_and_readme(mock_github_class):
     mock_gh.get_repo.return_value = mock_repo
     mock_repo.default_branch = "main"
 
-    # File tree with CLAUDE.md and README.md
     def make_entry(path, sha):
         e = MagicMock()
         e.type = "blob"
@@ -96,13 +105,13 @@ def test_get_repo_summary_includes_tree_and_readme(mock_github_class):
         return b
 
     mock_repo.get_git_blob.side_effect = fake_blob
+    client = GitHubClient("test-token")
 
-    summary = get_repo_summary("augusttollerup/myrepo")
+    summary = client.get_repo_summary("augusttollerup/myrepo")
 
     assert "CLAUDE.md" in summary
     assert "README.md" in summary
     assert "Project instructions" in summary
     assert "My Project" in summary
     assert "augusttollerup/myrepo" in summary
-    # CLAUDE.md must appear before README.md in the output
     assert summary.index("CLAUDE.md") < summary.index("README.md")

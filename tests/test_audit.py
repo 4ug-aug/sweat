@@ -39,3 +39,17 @@ def test_log_event_appends(tmp_audit_log):
     assert len(lines) == 2
     assert json.loads(lines[0])["event"] == "first_event"
     assert json.loads(lines[1])["event"] == "second_event"
+
+
+def test_log_event_includes_agent_id(tmp_audit_log):
+    audit.log_event("task_selected", agent_id="impl-1", task_gid="123")
+    with open(tmp_audit_log) as f:
+        record = json.loads(f.readline())
+    assert record["agent_id"] == "impl-1"
+
+
+def test_log_event_omits_agent_id_when_none(tmp_audit_log):
+    audit.log_event("test_event")
+    with open(tmp_audit_log) as f:
+        record = json.loads(f.readline())
+    assert "agent_id" not in record

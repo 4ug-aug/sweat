@@ -2,7 +2,8 @@
 sweat CLI — start the background service.
 
 Usage:
-    uv run python cli.py start [--implement-interval 3600] [--review-interval 60]
+    uv run python cli.py start
+    uv run python cli.py review
     uv run python cli.py log [--last N]
 """
 import argparse
@@ -13,8 +14,9 @@ import os
 import signal
 
 import config
-from main import run as run_implementer
-from pr_poller import poll_and_review
+from agents.registry import AGENT_TYPES
+from clients.asana import AsanaClient
+from clients.github import GitHubClient
 
 
 def _configure_logging() -> None:
@@ -25,38 +27,54 @@ def _configure_logging() -> None:
     )
 
 
-async def _implementer_loop(interval: int) -> None:
-    logging.info(f"Implementer loop started (every {interval}s)")
+def _build_agents(type_filter: str | None = None):
+    """Instantiate agents from config, optionally filtering by type."""
+    github = GitHubClient(config.GITHUB_TOKEN)
+    asana = AsanaClient(config.ASANA_TOKEN)
+
+    agents = []
+    for agent_cfg in config.AGENTS:
+        agent_type = agent_cfg["type"]
+        if type_filter and agent_type != type_filter:
+            continue
+        cls = AGENT_TYPES.get(agent_type)
+        if cls is None:
+            logging.warning(f"Unknown agent type: {agent_type!r}, skipping")
+            continue
+        agent = cls(
+            agent_id=agent_cfg["id"],
+            config=agent_cfg,
+            github=github,
+            asana=asana,
+        )
+        agents.append((agent, agent_cfg.get("interval", agent.default_interval)))
+    return agents
+
+
+async def _agent_loop(agent, interval: int) -> None:
+    logging.info(f"Agent {agent.agent_id!r} loop started (every {interval}s)")
     while True:
         try:
-            logging.info("Implementer: running")
-            await run_implementer()
+            logging.info(f"Agent {agent.agent_id!r}: running")
+            await agent.run_once()
         except Exception as exc:
-            logging.error(f"Implementer: error — {exc}")
+            logging.error(f"Agent {agent.agent_id!r}: error — {exc}")
         await asyncio.sleep(interval)
 
 
-async def _reviewer_loop(interval: int) -> None:
-    logging.info(f"Reviewer loop started (every {interval}s)")
-    while True:
-        try:
-            await poll_and_review()
-        except Exception as exc:
-            logging.error(f"Reviewer: error — {exc}")
-        await asyncio.sleep(interval)
-
-
-async def _start(implement_interval: int, review_interval: int) -> None:
+async def _start() -> None:
     loop = asyncio.get_running_loop()
     stop = loop.create_future()
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, stop.set_result, None)
 
-    logging.info("sweat service starting")
-    tasks = [
-        asyncio.create_task(_implementer_loop(implement_interval)),
-        asyncio.create_task(_reviewer_loop(review_interval)),
-    ]
+    agents = _build_agents()
+    if not agents:
+        logging.error("No agents configured. Check config.AGENTS.")
+        return
+
+    logging.info(f"sweat service starting — {len(agents)} agent(s)")
+    tasks = [asyncio.create_task(_agent_loop(agent, interval)) for agent, interval in agents]
     try:
         await stop
     finally:
@@ -66,11 +84,19 @@ async def _start(implement_interval: int, review_interval: int) -> None:
         await asyncio.gather(*tasks, return_exceptions=True)
 
 
+async def _run_once(type_filter: str) -> None:
+    agents = _build_agents(type_filter=type_filter)
+    for agent, _ in agents:
+        await agent.run_once()
+
+
 def _format_log_entry(record: dict) -> str:
     ts = record.get("timestamp", "")[:19].replace("T", " ")
     event = record.get("event", "")
     repo = record.get("repo", "")
+    agent_id = record.get("agent_id", "")
     repo_part = f"[{repo}] " if repo else ""
+    agent_part = f"({agent_id}) " if agent_id else ""
 
     if event == "task_selected":
         detail = f"{record.get('task_name', '')} (asana:{record.get('task_gid', '')})"
@@ -87,9 +113,9 @@ def _format_log_entry(record: dict) -> str:
     elif event == "pr_skipped":
         detail = f"PR #{record.get('pr_number', '')} — {record.get('reason', '')}"
     else:
-        detail = str({k: v for k, v in record.items() if k not in ("timestamp", "event", "repo")})
+        detail = str({k: v for k, v in record.items() if k not in ("timestamp", "event", "repo", "agent_id")})
 
-    return f"{ts}  {event:<30} {repo_part}{detail}"
+    return f"{ts}  {agent_part}{event:<30} {repo_part}{detail}"
 
 
 def _cmd_log(last: int) -> None:
@@ -115,13 +141,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(prog="sweat", description="sweat — agentic software engineer service")
     sub = parser.add_subparsers(dest="command")
 
-    start = sub.add_parser("start", help="Start the sweat service")
-    start.add_argument("--implement-interval", type=int, default=3600, metavar="SECONDS",
-                       help="How often to run the implementer loop (default: 3600)")
-    start.add_argument("--review-interval", type=int, default=60, metavar="SECONDS",
-                       help="How often to run the PR reviewer loop (default: 60)")
+    sub.add_parser("start", help="Start all configured agents")
 
-    sub.add_parser("review", help="Run the PR reviewer once and exit")
+    sub.add_parser("review", help="Run reviewer agents once and exit")
 
     log_cmd = sub.add_parser("log", help="View recent audit log entries")
     log_cmd.add_argument("--last", type=int, default=20, metavar="N",
@@ -129,9 +151,9 @@ def main() -> None:
 
     args = parser.parse_args()
     if args.command == "start":
-        asyncio.run(_start(args.implement_interval, args.review_interval))
+        asyncio.run(_start())
     elif args.command == "review":
-        asyncio.run(poll_and_review())
+        asyncio.run(_run_once("reviewer"))
     elif args.command == "log":
         _cmd_log(args.last)
     else:

@@ -1,3 +1,4 @@
+import json
 import re
 
 
@@ -39,7 +40,9 @@ def _passes_filters(task: dict, field_filters: dict, field_names: dict) -> bool:
         value = _extract_field(task, field_name)
         if isinstance(condition, list):
             if value not in condition:
-                print(f"    skip [{task['name']}]: {field_name} = {value!r} not in {condition}")
+                print(
+                    f"    skip [{task['name']}]: {field_name} = {value!r} not in {condition}"
+                )
                 return False
         elif isinstance(condition, dict):
             if value is None:
@@ -47,13 +50,19 @@ def _passes_filters(task: dict, field_filters: dict, field_names: dict) -> bool:
                 return False
             num = _to_minutes(value)
             if num is None:
-                print(f"    skip [{task['name']}]: {field_name} = {value!r} could not be parsed as a number or duration")
+                print(
+                    f"    skip [{task['name']}]: {field_name} = {value!r} could not be parsed as a number or duration"
+                )
                 return False
             if "max" in condition and num > condition["max"]:
-                print(f"    skip [{task['name']}]: {field_name} = {num}m > max {condition['max']}m")
+                print(
+                    f"    skip [{task['name']}]: {field_name} = {num}m > max {condition['max']}m"
+                )
                 return False
             if "min" in condition and num < condition["min"]:
-                print(f"    skip [{task['name']}]: {field_name} = {num}m < min {condition['min']}m")
+                print(
+                    f"    skip [{task['name']}]: {field_name} = {num}m < min {condition['min']}m"
+                )
                 return False
     return True
 
@@ -61,20 +70,24 @@ def _passes_filters(task: dict, field_filters: dict, field_names: dict) -> bool:
 def filter_and_rank_tasks(tasks: list[dict], project_cfg: dict) -> list[dict]:
     field_names = project_cfg.get("field_names", {})
     field_filters = project_cfg.get("field_filters", {})
-    priority_order = project_cfg.get("priority_order", ["Urgent", "High", "Medium", "Low"])
+    priority_order = project_cfg.get("priority_order", ["High", "Medium", "Low"])
     max_tasks = project_cfg.get("max_tasks_for_selector", 20)
+
+    print(f"Config: {json.dumps(project_cfg, indent=2)}")
 
     if field_filters:
         tasks = [t for t in tasks if _passes_filters(t, field_filters, field_names)]
 
     priority_field = field_names.get("priority")
     if priority_field:
+
         def _priority_key(task):
             val = _extract_field(task, priority_field)
             try:
                 return priority_order.index(val)
             except (ValueError, TypeError):
                 return len(priority_order)
+
         tasks = sorted(tasks, key=_priority_key)
 
     return tasks[:max_tasks]

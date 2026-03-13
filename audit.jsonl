@@ -45,3 +45,39 @@
 {"timestamp": "2026-03-13T10:49:54.620578+00:00", "event": "pr_review_posted", "repo": "org/repo", "pr_number": 1, "pr_title": "Fix bug"}
 {"timestamp": "2026-03-13T10:49:54.621294+00:00", "event": "pr_review_failed", "repo": "org/repo", "pr_number": 2, "error": "timeout"}
 {"timestamp": "2026-03-13T10:49:54.622068+00:00", "event": "pr_review_posted", "repo": "org/repo", "pr_number": 3, "pr_title": "Big PR"}
+{"timestamp": "2026-03-13T11:13:15.442494+00:00", "event": "task_selected", "task_gid": "111", "task_name": "Fix login bug", "repo": "4ug-aug/sweat"}
+{"timestamp": "2026-03-13T11:13:15.443021+00:00", "event": "implementation_succeeded", "task_gid": "111", "task_name": "Fix login bug", "repo": "4ug-aug/sweat", "branch": "agent/asana-111-fix-login-bug", "pr_url": "https://github.com/augusttollerup/repo/pull/1"}
+{"timestamp": "2026-03-13T11:13:15.444552+00:00", "event": "no_task_found"}
+{"timestamp": "2026-03-13T11:13:15.445868+00:00", "event": "task_selected", "task_gid": "111", "task_name": "Fix login bug", "repo": "4ug-aug/sweat"}
+{"timestamp": "2026-03-13T11:13:15.447339+00:00", "event": "task_selected", "task_gid": "111", "task_name": "Fix login bug", "repo": "4ug-aug/sweat"}
+{"timestamp": "2026-03-13T11:13:15.447530+00:00", "event": "implementation_failed", "task_gid": "111", "task_name": "Fix login bug", "repo": "4ug-aug/sweat", "error": "Agent crashed"}
+{"timestamp": "2026-03-13T11:15:16.070937+00:00", "event": "task_selected", "task_gid": "1211517554960563", "task_name": "Rotate MinIO password in production", "repo": "4ug-aug/sweat"}
+{"timestamp": "2026-03-13T11:15:45.103562+00:00", "event": "task_selected", "task_gid": "111", "task_name": "Fix login bug", "repo": "4ug-aug/sweat"}
+{"timestamp": "2026-03-13T11:15:45.104047+00:00", "event": "implementation_succeeded", "task_gid": "111", "task_name": "Fix login bug", "repo": "4ug-aug/sweat", "branch": "agent/asana-111-fix-login-bug", "pr_url": "https://github.com/augusttollerup/repo/pull/1"}
+{"timestamp": "2026-03-13T11:15:45.105455+00:00", "event": "no_task_found"}
+{"timestamp": "2026-03-13T11:15:45.106760+00:00", "event": "task_selected", "task_gid": "111", "task_name": "Fix login bug", "repo": "4ug-aug/sweat"}
+{"timestamp": "2026-03-13T11:15:45.108280+00:00", "event": "task_selected", "task_gid": "111", "task_name": "Fix login bug", "repo": "4ug-aug/sweat"}
+{"timestamp": "2026-03-13T11:15:45.108478+00:00", "event": "implementation_failed", "task_gid": "111", "task_name": "Fix login bug", "repo": "4ug-aug/sweat", "error": "Agent crashed"}
+{"timestamp": "2026-03-13T11:17:27.083092+00:00", "event": "task_selected", "task_gid": "1211517554960563", "task_name": "Rotate MinIO password in production", "repo": "4ug-aug/sweat"}
+{"timestamp": "2026-03-13T12:37:21.112863+00:00", "event": "task_selected", "task_gid": "1211006736602232", "task_name": "Fix hardcoded 200 status in API key usage logging", "repo": "SecureDevice-DevOps/IntellAgent"}
+{"timestamp": "2026-03-13T12:40:58.379393+00:00", "event": "task_selected", "task_gid": "1211006736602232", "task_name": "Fix hardcoded 200 status in API key usage logging", "repo": "SecureDevice-DevOps/IntellAgent"}
+{"timestamp": "2026-03-13T12:44:50.792927+00:00", "event": "implementation_succeeded", "task_gid": "1211006736602232", "task_name": "Fix hardcoded 200 status in API key usage logging", "repo": "SecureDevice-DevOps/IntellAgent", "branch": "agent/asana-1211006736602232-fix-hardcoded-200-status-in-api-key-usag", "pr_url": "https://github.com/SecureDevice-DevOps/IntellAgent/pull/863"}
+{"timestamp": "2026-03-13T13:21:06.482884+00:00", "event": "pr_review_posted", "repo": "SecureDevice-DevOps/IntellAgent", "pr_number": 665, "pr_title": "Tuning dashboard titles"}
+{"timestamp": "2026-03-13T13:21:08.954484+00:00", "event": "pr_skipped", "repo": "SecureDevice-DevOps/IntellAgent", "pr_number": 837, "reason": "already_reviewed"}
+{"timestamp": "2026-03-13T13:22:24.157253+00:00", "event": "pr_review_posted", "repo": "SecureDevice-DevOps/IntellAgent", "pr_number": 854, "pr_title": "Send to tuning action menu item with visibility and enabling logic"}
+{"timestamp": "2026-03-13T13:23:56.770422+00:00", "event": "pr_review_posted", "repo": "SecureDevice-DevOps/IntellAgent", "pr_number": 859, "pr_title": "Feat close incident with reference"}
+{"timestamp": "2026-03-13T13:24:37.946723+00:00", "event": "pr_review_posted", "repo": "SecureDevice-DevOps/IntellAgent", "pr_number": 862, "pr_title": "Fix: Remove port mapping for UI verification in Docker Compose config\u2026"}
+{"timestamp": "2026-03-13T13:24:37.947422+00:00", "event": "pr_skipped", "repo": "SecureDevice-DevOps/IntellAgent", "pr_number": 863, "reason": "self_authored"}
+{"timestamp": "2026-03-13T13:25:26.338206+00:00", "event": "pr_review_posted", "repo": "SecureDevice-DevOps/IntellAgent", "pr_number": 864, "pr_title": "Fix: Change admin session router back to use async functions for sess\u2026"}
+{"timestamp": "2026-03-13T13:49:51.571788+00:00", "event": "task_selected", "task_gid": "111", "task_name": "Fix login bug", "repo": "org/repo", "agent_id": "test-impl"}
+{"timestamp": "2026-03-13T13:49:51.572329+00:00", "event": "implementation_succeeded", "task_gid": "111", "task_name": "Fix login bug", "repo": "org/repo", "branch": "agent/asana-111-fix-login-bug", "pr_url": "https://github.com/org/repo/pull/1", "agent_id": "test-impl"}
+{"timestamp": "2026-03-13T13:49:51.573736+00:00", "event": "no_task_found", "agent_id": "test-impl"}
+{"timestamp": "2026-03-13T13:49:51.575088+00:00", "event": "task_selected", "task_gid": "111", "task_name": "Fix login bug", "repo": "org/repo", "agent_id": "test-impl"}
+{"timestamp": "2026-03-13T13:49:51.576457+00:00", "event": "task_selected", "task_gid": "111", "task_name": "Fix login bug", "repo": "org/repo", "agent_id": "test-impl"}
+{"timestamp": "2026-03-13T13:49:51.576726+00:00", "event": "implementation_failed", "task_gid": "111", "task_name": "Fix login bug", "repo": "org/repo", "error": "Agent crashed", "agent_id": "test-impl"}
+{"timestamp": "2026-03-13T13:49:51.579403+00:00", "event": "pr_review_posted", "repo": "org/repo", "pr_number": 42, "pr_title": "Add feature", "agent_id": "test-reviewer"}
+{"timestamp": "2026-03-13T13:49:51.580300+00:00", "event": "pr_skipped", "repo": "org/repo", "pr_number": 7, "reason": "self_authored", "agent_id": "test-reviewer"}
+{"timestamp": "2026-03-13T13:49:51.581428+00:00", "event": "pr_skipped", "repo": "org/repo", "pr_number": 5, "reason": "already_reviewed", "agent_id": "test-reviewer"}
+{"timestamp": "2026-03-13T13:49:51.583317+00:00", "event": "pr_review_posted", "repo": "org/repo", "pr_number": 1, "pr_title": "Fix bug", "agent_id": "test-reviewer"}
+{"timestamp": "2026-03-13T13:49:51.584451+00:00", "event": "pr_review_failed", "repo": "org/repo", "pr_number": 2, "error": "timeout", "agent_id": "test-reviewer"}
+{"timestamp": "2026-03-13T13:49:51.585748+00:00", "event": "pr_review_posted", "repo": "org/repo", "pr_number": 3, "pr_title": "Big PR", "agent_id": "test-reviewer"}
