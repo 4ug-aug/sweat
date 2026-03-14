@@ -1,8 +1,11 @@
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 
 load_dotenv()
+
+KNOWLEDGE_DIR = str(Path(__file__).resolve().parent / "knowledge")
 
 ASANA_TOKEN = os.environ["ASANA_TOKEN"]
 GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]

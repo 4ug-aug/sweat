@@ -56,7 +56,8 @@ class ReviewerAgent(BaseAgent):
         meta = await self.github.get_pr_metadata_async(repo, pr_number)
         diff = (await self.github.get_pr_diff_async(repo, pr_number))[:_MAX_DIFF_CHARS]
         repo_summary = await self.github.get_repo_summary_async(repo)
-        prompt = build_review_prompt(meta, diff, repo_summary)
+        import config
+        prompt = build_review_prompt(meta, diff, repo_summary, knowledge_dir=config.KNOWLEDGE_DIR)
         result = await run_agent(repo_path=None, prompt=prompt)
         if result.success and result.summary:
             await self.github.post_pr_review_async(repo, pr_number, body=result.summary)

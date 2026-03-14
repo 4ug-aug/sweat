@@ -96,7 +96,8 @@ class ImplementerAgent(BaseAgent):
             repo_path = await self.github.clone_repo_async(repo)
             try:
                 await self.github.create_branch_async(repo_path, branch)
-                prompt = build_agent_prompt(task, repo)
+                import config
+                prompt = build_agent_prompt(task, repo, knowledge_dir=config.KNOWLEDGE_DIR)
                 try:
                     result = await run_agent(repo_path, prompt)
                 except AgentError as exc:
