@@ -45,6 +45,9 @@ class _TasksProxy:
     def update_task(self, task_id, body, opt_pretty=False):
         return self._api.update_task({"data": body}, task_id, {})
 
+    def create_task(self, body):
+        return self._api.create_task({"data": body}, {})
+
 
 class _StoriesProxy:
     def __init__(self, api_client):
@@ -121,6 +124,29 @@ class AsanaClient:
         except Exception as exc:
             raise AsanaError(f"Failed to add time tracking entry to task {task_id}: {exc}") from exc
 
+    def create_task(self, project_id: str, name: str, notes: str) -> dict:
+        try:
+            body = {"name": name, "projects": [project_id], "notes": notes}
+            result = self._client.tasks.create_task(body)
+            return result
+        except Exception as exc:
+            raise AsanaError(f"Failed to create task in project {project_id}: {exc}") from exc
+
+    def get_tasks(self, project_id: str) -> list[dict]:
+        try:
+            task_refs = self._client.tasks.get_tasks_for_project(
+                project_id,
+                opt_fields="gid,name,completed",
+                opt_pretty=True,
+            )
+            return [
+                {"gid": ref["gid"], "name": ref["name"]}
+                for ref in task_refs
+                if not ref.get("completed")
+            ]
+        except Exception as exc:
+            raise AsanaError(f"Failed to get tasks for project {project_id}: {exc}") from exc
+
     # Async wrappers — delegate to sync methods via to_thread to unblock the event loop.
 
     async def get_unassigned_tasks_async(self, project_id: str) -> list[dict]:
@@ -134,3 +160,9 @@ class AsanaClient:
 
     async def add_time_tracking_entry_async(self, task_id: str, duration_minutes: int, entered_on: str) -> None:
         await asyncio.to_thread(self.add_time_tracking_entry, task_id, duration_minutes, entered_on)
+
+    async def create_task_async(self, project_id: str, name: str, notes: str) -> dict:
+        return await asyncio.to_thread(self.create_task, project_id, name, notes)
+
+    async def get_tasks_async(self, project_id: str) -> list[dict]:
+        return await asyncio.to_thread(self.get_tasks, project_id)

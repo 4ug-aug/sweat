@@ -50,4 +50,16 @@ AGENTS = [
             }
         ],
     },
+    {
+        "id": "code-reviewer-intellagent",
+        "type": "code_reviewer",
+        "interval": 86400,
+        "projects": [
+            {
+                "asana_project_id": "1211944379207711",
+                "github_repo": "SecureDevice-DevOps/IntellAgent",
+                "quality_doc_path": "docs/code-quality.md",
+            }
+        ],
+    },
 ]

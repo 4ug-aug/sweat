@@ -127,6 +127,16 @@ def _format_log_entry(record: dict) -> str:
         detail = f"PR #{record.get('pr_number', '')} — {record.get('error', '')}"
     elif event == "pr_skipped":
         detail = f"PR #{record.get('pr_number', '')} — {record.get('reason', '')}"
+    elif event == "code_review_completed":
+        detail = f"{record.get('findings_count', 0)} findings, {record.get('tasks_created', 0)} tasks created"
+    elif event == "code_review_task_created":
+        detail = f"{record.get('title', '')} [{record.get('priority', '')}]"
+    elif event == "code_review_skipped":
+        detail = f"skipped — {record.get('reason', '')}"
+    elif event == "code_review_failed":
+        detail = f"error: {record.get('error', '')}"
+    elif event == "code_review_duplicate_skipped":
+        detail = f"duplicate: {record.get('title', '')}"
     else:
         detail = str({k: v for k, v in record.items() if k not in ("timestamp", "event", "repo", "agent_id")})
 
@@ -160,6 +170,8 @@ def main() -> None:
 
     sub.add_parser("review", help="Run reviewer agents once and exit")
 
+    sub.add_parser("code-review", help="Run code review agents once and exit")
+
     log_cmd = sub.add_parser("log", help="View recent audit log entries")
     log_cmd.add_argument("--last", type=int, default=20, metavar="N",
                          help="Number of recent entries to show (default: 20)")
@@ -169,6 +181,8 @@ def main() -> None:
         asyncio.run(_start())
     elif args.command == "review":
         asyncio.run(_run_once("reviewer"))
+    elif args.command == "code-review":
+        asyncio.run(_run_once("code_reviewer"))
     elif args.command == "log":
         _cmd_log(args.last)
     else:

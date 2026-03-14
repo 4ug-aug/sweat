@@ -108,3 +108,36 @@ def test_add_time_tracking_entry_calls_api(mock_client_class):
     mock_client.time_tracking.create_time_tracking_entry.assert_called_once_with(
         "TASK_GID", {"duration_minutes": 42, "entered_on": "2026-03-13"}
     )
+
+
+@patch("clients.asana._Client")
+def test_create_task_calls_api(mock_client_class):
+    mock_client = MagicMock()
+    mock_client_class.return_value = mock_client
+    mock_client.tasks.create_task.return_value = {"gid": "999", "name": "New task"}
+
+    client = AsanaClient("test-token")
+    result = client.create_task("PROJECT_GID", "New task", "Some notes")
+
+    mock_client.tasks.create_task.assert_called_once_with(
+        {"name": "New task", "projects": ["PROJECT_GID"], "notes": "Some notes"}
+    )
+    assert result["gid"] == "999"
+
+
+@patch("clients.asana._Client")
+def test_get_tasks_returns_incomplete(mock_client_class):
+    mock_client = MagicMock()
+    mock_client_class.return_value = mock_client
+    mock_client.tasks.get_tasks_for_project.return_value = [
+        {"gid": "111", "name": "Open task", "completed": False},
+        {"gid": "222", "name": "Done task", "completed": True},
+        {"gid": "333", "name": "Another open", "completed": False},
+    ]
+
+    client = AsanaClient("test-token")
+    tasks = client.get_tasks("PROJECT_GID")
+
+    assert len(tasks) == 2
+    assert tasks[0] == {"gid": "111", "name": "Open task"}
+    assert tasks[1] == {"gid": "333", "name": "Another open"}
