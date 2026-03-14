@@ -1,5 +1,8 @@
 import json
+import logging
 import re
+
+logger = logging.getLogger(__name__)
 
 
 def _to_minutes(value: str) -> float | None:
@@ -40,28 +43,29 @@ def _passes_filters(task: dict, field_filters: dict, field_names: dict) -> bool:
         value = _extract_field(task, field_name)
         if isinstance(condition, list):
             if value not in condition:
-                print(
-                    f"    skip [{task['name']}]: {field_name} = {value!r} not in {condition}"
+                logger.debug(
+                    "    skip [%s]: %s = %r not in %s", task['name'], field_name, value, condition
                 )
                 return False
         elif isinstance(condition, dict):
             if value is None:
-                print(f"    skip [{task['name']}]: {field_name} is missing")
+                logger.debug("    skip [%s]: %s is missing", task['name'], field_name)
                 return False
             num = _to_minutes(value)
             if num is None:
-                print(
-                    f"    skip [{task['name']}]: {field_name} = {value!r} could not be parsed as a number or duration"
+                logger.debug(
+                    "    skip [%s]: %s = %r could not be parsed as a number or duration",
+                    task['name'], field_name, value,
                 )
                 return False
             if "max" in condition and num > condition["max"]:
-                print(
-                    f"    skip [{task['name']}]: {field_name} = {num}m > max {condition['max']}m"
+                logger.debug(
+                    "    skip [%s]: %s = %sm > max %sm", task['name'], field_name, num, condition['max']
                 )
                 return False
             if "min" in condition and num < condition["min"]:
-                print(
-                    f"    skip [{task['name']}]: {field_name} = {num}m < min {condition['min']}m"
+                logger.debug(
+                    "    skip [%s]: %s = %sm < min %sm", task['name'], field_name, num, condition['min']
                 )
                 return False
     return True
@@ -73,7 +77,7 @@ def filter_and_rank_tasks(tasks: list[dict], project_cfg: dict) -> list[dict]:
     priority_order = project_cfg.get("priority_order", ["High", "Medium", "Low"])
     max_tasks = project_cfg.get("max_tasks_for_selector", 20)
 
-    print(f"Config: {json.dumps(project_cfg, indent=2)}")
+    logger.debug("Config: %s", json.dumps(project_cfg, indent=2))
 
     if field_filters:
         tasks = [t for t in tasks if _passes_filters(t, field_filters, field_names)]

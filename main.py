@@ -1,5 +1,6 @@
 """Convenience entry point — runs the first configured implementer agent once."""
 import asyncio
+import logging
 import sys
 
 import config
@@ -27,5 +28,5 @@ if __name__ == "__main__":
     try:
         asyncio.run(_build_implementer(dry_run).run_once())
     except SweatError as exc:
-        print(f"Error: {exc}", file=sys.stderr)
+        logging.error("Error: %s", exc)
         sys.exit(1)

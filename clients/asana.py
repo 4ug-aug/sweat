@@ -1,8 +1,11 @@
 import asyncio
+import logging
 
 import asana
 
 from exceptions import AsanaError
+
+logger = logging.getLogger(__name__)
 
 
 class _Client:
@@ -71,7 +74,7 @@ class AsanaClient:
 
     def get_unassigned_tasks(self, project_id: str) -> list[dict]:
         try:
-            print(f"Getting tasks for project: {project_id}")
+            logger.info("Getting tasks for project: %s", project_id)
             task_refs = self._client.tasks.get_tasks_for_project(
                 project_id,
                 opt_fields="gid,name,completed",
@@ -91,7 +94,7 @@ class AsanaClient:
                         if cf.get("display_value")
                     )
                     suffix = f" - {fields}" if fields else ""
-                    print(f"  {task['gid']} - {task['name']}{suffix}")
+                    logger.info("  %s - %s%s", task['gid'], task['name'], suffix)
                     tasks.append(task)
             return tasks
         except Exception as exc:
