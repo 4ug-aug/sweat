@@ -9,9 +9,12 @@ uv sync                              # Install dependencies (never use pip)
 uv run pytest -v                     # Run all tests
 uv run pytest tests/test_foo.py -v   # Run a single test file
 uv run pytest -k "test_name" -v      # Run a single test by name
-uv run python cli.py start           # Start all agents (implementer + reviewer loops)
-uv run python cli.py review          # Run reviewer agents once
-uv run python cli.py log --last 20   # View recent audit log entries
+uv run sweat init                    # Interactive setup: create .env + sweat.config.json + docker-compose.yml
+uv run sweat up                      # Build Docker image and start via Compose
+uv run sweat up -d                   # Same, detached (background)
+uv run sweat start                   # Start agents directly (used inside container)
+uv run sweat review                  # Run reviewer agents once
+uv run sweat log --last 20           # View recent audit log entries
 uv run python main.py --dry-run      # Run first implementer once in dry-run mode
 ```
 

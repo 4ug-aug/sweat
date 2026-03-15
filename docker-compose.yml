@@ -1,0 +1,12 @@
+services:
+  sweat:
+    build: .
+    env_file: .env
+    environment:
+      - AUDIT_LOG_PATH=/app/data/audit.jsonl
+    volumes:
+      - audit-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  audit-data:

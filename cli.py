@@ -2,18 +2,39 @@
 sweat CLI — start the background service.
 
 Usage:
-    uv run python cli.py start
-    uv run python cli.py review
-    uv run python cli.py log [--last N]
+    sweat start
+    sweat review
+    sweat log [--last N]
+    sweat init
 """
 import argparse
 import asyncio
+import getpass
 import json
 import logging
 import os
 import signal
+import subprocess
+import sys
+import time
 
 import config
+import telemetry
+
+_COMPOSE_TEMPLATE = """\
+services:
+  sweat:
+    build: .
+    env_file: .env
+    environment:
+      - AUDIT_LOG_PATH=/app/data/audit.jsonl
+    volumes:
+      - audit-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  audit-data:
+"""
 from agents.registry import AGENT_TYPES
 from clients.asana import AsanaClient
 from clients.github import GitHubClient
@@ -34,6 +55,10 @@ def _build_agents(type_filter: str | None = None):
     gets a unique id (``{base_id}-{i}``) and a staggered ``initial_delay``
     so that replicas don't all fire at the same instant.
     """
+    if not config.ASANA_TOKEN or not config.GITHUB_TOKEN:
+        logging.error("ASANA_TOKEN and GITHUB_TOKEN must be set. Run 'sweat init' to configure.")
+        return []
+
     github = GitHubClient(config.GITHUB_TOKEN)
     asana = AsanaClient(config.ASANA_TOKEN)
 
@@ -69,11 +94,25 @@ async def _agent_loop(agent, interval: int, initial_delay: float = 0) -> None:
         await asyncio.sleep(initial_delay)
     logging.info(f"Agent {agent.agent_id!r} loop started (every {interval}s)")
     while True:
-        try:
-            logging.info(f"Agent {agent.agent_id!r}: running")
-            await agent.run_once()
-        except Exception as exc:
-            logging.error(f"Agent {agent.agent_id!r}: error — {exc}")
+        tracer = telemetry.tracer()
+        with tracer.start_as_current_span(
+            "agent.run_once",
+            attributes={"agent.id": agent.agent_id, "agent.type": agent.config.get("type", "")},
+        ) as span:
+            try:
+                logging.info(f"Agent {agent.agent_id!r}: running")
+                if telemetry.agent_runs:
+                    telemetry.agent_runs.add(1, {"agent.id": agent.agent_id})
+                start = time.monotonic()
+                await agent.run_once()
+                if telemetry.agent_run_duration:
+                    telemetry.agent_run_duration.record(time.monotonic() - start, {"agent.id": agent.agent_id})
+            except Exception as exc:
+                span.set_status(telemetry.trace.StatusCode.ERROR, str(exc))
+                span.record_exception(exc)
+                if telemetry.agent_errors:
+                    telemetry.agent_errors.add(1, {"agent.id": agent.agent_id})
+                logging.error(f"Agent {agent.agent_id!r}: error — {exc}")
         await asyncio.sleep(interval)
 
 
@@ -161,6 +200,87 @@ def _cmd_log(last: int) -> None:
             print(line)
 
 
+def _cmd_init() -> None:
+    """Interactive setup: prompt for credentials and write config files."""
+    print("sweat init — interactive setup\n")
+
+    asana_token = getpass.getpass("Asana personal access token: ")
+    github_token = getpass.getpass("GitHub personal access token: ")
+    asana_assignee_gid = input("Asana assignee GID (the user GID the agent works as): ")
+    asana_project_id = input("Asana project ID: ")
+    github_repo = input("GitHub repo (owner/name): ")
+
+    # Write .env
+    env_path = os.path.join(os.getcwd(), ".env")
+    with open(env_path, "w") as f:
+        f.write(f"ASANA_TOKEN={asana_token}\n")
+        f.write(f"GITHUB_TOKEN={github_token}\n")
+        f.write(f"ASANA_ASSIGNEE_GID={asana_assignee_gid}\n")
+    print(f"\nWrote {env_path}")
+
+    # Write sweat.config.json
+    starter_config = {
+        "agents": [
+            {
+                "id": "implementer",
+                "type": "implementer",
+                "interval": 3600,
+                "asana_assignee_gid": asana_assignee_gid,
+                "projects": [
+                    {
+                        "asana_project_id": asana_project_id,
+                        "github_repo": github_repo,
+                        "branch_prefix": "agent/",
+                        "field_names": {},
+                        "field_filters": {},
+                        "priority_order": ["High", "Medium", "Low"],
+                        "max_tasks_for_selector": 15,
+                    }
+                ],
+            },
+            {
+                "id": "reviewer",
+                "type": "reviewer",
+                "interval": 60,
+                "projects": [
+                    {
+                        "github_repo": github_repo,
+                        "branch_prefix": "agent/",
+                    }
+                ],
+            },
+        ]
+    }
+    config_path = os.path.join(os.getcwd(), "sweat.config.json")
+    with open(config_path, "w") as f:
+        json.dump(starter_config, f, indent=2)
+        f.write("\n")
+    print(f"Wrote {config_path}")
+
+    compose_path = os.path.join(os.getcwd(), "docker-compose.yml")
+    if not os.path.exists(compose_path):
+        with open(compose_path, "w") as f:
+            f.write(_COMPOSE_TEMPLATE)
+        print(f"Wrote {compose_path}")
+    else:
+        print(f"Skipped {compose_path} (already exists)")
+
+    print("\nNext steps:")
+    print("  1. Review and customize sweat.config.json (field_names, field_filters, etc.)")
+    print("  2. Run: sweat up")
+
+
+def _cmd_up(detach: bool) -> None:
+    compose_path = os.path.join(os.getcwd(), "docker-compose.yml")
+    if not os.path.exists(compose_path):
+        print("No docker-compose.yml found. Run 'sweat init' first.")
+        sys.exit(1)
+    cmd = ["docker", "compose", "up", "--build"]
+    if detach:
+        cmd.append("-d")
+    subprocess.run(cmd, check=True)
+
+
 def main() -> None:
     _configure_logging()
     parser = argparse.ArgumentParser(prog="sweat", description="sweat — agentic software engineer service")
@@ -176,8 +296,14 @@ def main() -> None:
     log_cmd.add_argument("--last", type=int, default=20, metavar="N",
                          help="Number of recent entries to show (default: 20)")
 
+    sub.add_parser("init", help="Interactive setup: create .env, sweat.config.json, and docker-compose.yml")
+
+    up_cmd = sub.add_parser("up", help="Build and start sweat via Docker Compose")
+    up_cmd.add_argument("-d", "--detach", action="store_true", help="Run containers in the background")
+
     args = parser.parse_args()
     if args.command == "start":
+        telemetry.init()
         asyncio.run(_start())
     elif args.command == "review":
         asyncio.run(_run_once("reviewer"))
@@ -185,6 +311,10 @@ def main() -> None:
         asyncio.run(_run_once("code_reviewer"))
     elif args.command == "log":
         _cmd_log(args.last)
+    elif args.command == "init":
+        _cmd_init()
+    elif args.command == "up":
+        _cmd_up(args.detach)
     else:
         parser.print_help()
 

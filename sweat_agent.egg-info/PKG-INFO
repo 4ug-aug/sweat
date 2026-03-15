@@ -1,3 +1,18 @@
+Metadata-Version: 2.4
+Name: sweat-agent
+Version: 0.1.0
+Summary: Digital twin agent — picks Asana tasks and implements them via Claude Code
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: claude-agent-sdk>=0.0.14
+Requires-Dist: asana>=5.0.0
+Requires-Dist: PyGithub>=2.1.1
+Requires-Dist: GitPython>=3.1.41
+Requires-Dist: python-dotenv>=1.0.0
+Requires-Dist: opentelemetry-api>=1.20.0
+Requires-Dist: opentelemetry-sdk>=1.20.0
+Requires-Dist: opentelemetry-exporter-otlp-proto-grpc>=1.20.0
+
 # sweat — Software Engineer August Tollerup
 
 **sweat** is an autonomous software engineering agent. It runs on a schedule, picks unassigned tasks from Asana, implements them using Claude Code SDK, and opens GitHub pull requests — all without human intervention. A second agent reviews PRs, and a third audits code quality.

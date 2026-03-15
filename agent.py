@@ -1,6 +1,8 @@
+import time
 from dataclasses import dataclass
 from claude_agent_sdk import query, ClaudeAgentOptions
 
+import telemetry
 from exceptions import AgentError
 
 
@@ -13,21 +15,32 @@ class AgentResult:
 
 async def run_agent(repo_path: str | None, prompt: str) -> AgentResult:
     """Run Claude Code SDK headlessly in repo_path with the given prompt."""
-    try:
-        options = ClaudeAgentOptions(
-            permission_mode="acceptEdits",
-            **({"cwd": repo_path} if repo_path else {}),
-        )
-        summary_parts = []
-        async for message in query(prompt=prompt, options=options):
-            if hasattr(message, "result") and message.result:
-                summary_parts.append(str(message.result))
-        return AgentResult(success=True, summary=" ".join(summary_parts))
-    except Exception as exc:
-        msg = str(exc)
-        if "exit code 1" in msg or "exit code: 1" in msg:
-            raise AgentError(
-                "Claude CLI exited with code 1 — you may need to re-authenticate. "
-                "Run `claude` interactively and log in, then retry."
-            ) from exc
-        raise AgentError(f"Agent failed: {exc}") from exc
+    tracer = telemetry.tracer()
+    with tracer.start_as_current_span("claude.run_agent") as span:
+        if telemetry.claude_calls:
+            telemetry.claude_calls.add(1)
+        start = time.monotonic()
+        try:
+            options = ClaudeAgentOptions(
+                permission_mode="acceptEdits",
+                **({"cwd": repo_path} if repo_path else {}),
+            )
+            summary_parts = []
+            async for message in query(prompt=prompt, options=options):
+                if hasattr(message, "result") and message.result:
+                    summary_parts.append(str(message.result))
+            span.set_attribute("claude.success", True)
+            return AgentResult(success=True, summary=" ".join(summary_parts))
+        except Exception as exc:
+            span.set_status(telemetry.trace.StatusCode.ERROR, str(exc))
+            span.record_exception(exc)
+            msg = str(exc)
+            if "exit code 1" in msg or "exit code: 1" in msg:
+                raise AgentError(
+                    "Claude CLI exited with code 1 — you may need to re-authenticate. "
+                    "Run `claude` interactively and log in, then retry."
+                ) from exc
+            raise AgentError(f"Agent failed: {exc}") from exc
+        finally:
+            if telemetry.claude_call_duration:
+                telemetry.claude_call_duration.record(time.monotonic() - start)

@@ -1,5 +1,5 @@
 [project]
-name = "sweat"
+name = "sweat-agent"
 version = "0.1.0"
 description = "Digital twin agent — picks Asana tasks and implements them via Claude Code"
 readme = "README.md"
@@ -10,13 +10,33 @@ dependencies = [
     "PyGithub>=2.1.1",
     "GitPython>=3.1.41",
     "python-dotenv>=1.0.0",
+    "opentelemetry-api>=1.20.0",
+    "opentelemetry-sdk>=1.20.0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
 ]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
 
 [dependency-groups]
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
 ]
+
+[project.scripts]
+sweat = "cli:main"
+
+[tool.setuptools]
+py-modules = [
+    "cli", "config", "agent", "audit", "task_selector",
+    "task_filter", "task_claims", "telemetry", "exceptions", "main",
+]
+packages = ["agents", "clients", "prompts", "knowledge"]
+
+[tool.setuptools.package-data]
+knowledge = ["**/*.md"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

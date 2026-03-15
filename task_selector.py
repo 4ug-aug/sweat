@@ -1,8 +1,10 @@
 import json
 import logging
+import time
 
 from claude_agent_sdk import ClaudeAgentOptions, query
 
+import telemetry
 from exceptions import TaskSelectorError
 
 _SYSTEM = """You are an AI agent that evaluates software tasks for feasibility.
@@ -42,21 +44,31 @@ async def select_task(tasks: list[dict], repo_context: str = "") -> dict | None:
     context_section = f"\n\n## Codebase context\n{repo_context}" if repo_context else ""
     prompt = f"{_SYSTEM}{context_section}\n\nHere are the available tasks:\n\n{task_list}\n\nWhich one should I work on? Reply with JSON only."
 
-    text = ""
-    try:
-        async for message in query(prompt=prompt, options=ClaudeAgentOptions()):
-            if hasattr(message, "content"):
-                for block in message.content:
-                    if hasattr(block, "text"):
-                        text = block.text
-    except Exception as exc:
-        msg = str(exc)
-        if "exit code 1" in msg or "exit code: 1" in msg:
-            raise TaskSelectorError(
-                "Claude CLI exited with code 1 — you may need to re-authenticate. "
-                "Run `claude` interactively and log in, then retry."
-            ) from exc
-        raise TaskSelectorError(f"Claude agent failed during task selection: {exc}") from exc
+    tracer = telemetry.tracer()
+    with tracer.start_as_current_span("claude.select_task", attributes={"tasks.count": len(tasks)}) as span:
+        if telemetry.claude_calls:
+            telemetry.claude_calls.add(1)
+        start = time.monotonic()
+        text = ""
+        try:
+            async for message in query(prompt=prompt, options=ClaudeAgentOptions()):
+                if hasattr(message, "content"):
+                    for block in message.content:
+                        if hasattr(block, "text"):
+                            text = block.text
+        except Exception as exc:
+            span.set_status(telemetry.trace.StatusCode.ERROR, str(exc))
+            span.record_exception(exc)
+            msg = str(exc)
+            if "exit code 1" in msg or "exit code: 1" in msg:
+                raise TaskSelectorError(
+                    "Claude CLI exited with code 1 — you may need to re-authenticate. "
+                    "Run `claude` interactively and log in, then retry."
+                ) from exc
+            raise TaskSelectorError(f"Claude agent failed during task selection: {exc}") from exc
+        finally:
+            if telemetry.claude_call_duration:
+                telemetry.claude_call_duration.record(time.monotonic() - start)
 
     if not text:
         return None
