@@ -17,6 +17,7 @@ import signal
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 import config
 import telemetry
@@ -210,13 +211,19 @@ def _cmd_init() -> None:
     asana_project_id = input("Asana project ID: ")
     github_repo = input("GitHub repo (owner/name): ")
 
+    cwd = Path.cwd()
+
     # Write .env
-    env_path = os.path.join(os.getcwd(), ".env")
-    with open(env_path, "w") as f:
-        f.write(f"ASANA_TOKEN={asana_token}\n")
-        f.write(f"GITHUB_TOKEN={github_token}\n")
-        f.write(f"ASANA_ASSIGNEE_GID={asana_assignee_gid}\n")
-    print(f"\nWrote {env_path}")
+    env_path = cwd / ".env"
+    if not env_path.exists():
+        env_path.write_text(
+            f"ASANA_TOKEN={asana_token}\n"
+            f"GITHUB_TOKEN={github_token}\n"
+            f"ASANA_ASSIGNEE_GID={asana_assignee_gid}\n"
+        )
+        print(f"\nWrote {env_path}")
+    else:
+        print(f"\nSkipped {env_path} (already exists)")
 
     # Write sweat.config.json
     starter_config = {
@@ -251,16 +258,16 @@ def _cmd_init() -> None:
             },
         ]
     }
-    config_path = os.path.join(os.getcwd(), "sweat.config.json")
-    with open(config_path, "w") as f:
-        json.dump(starter_config, f, indent=2)
-        f.write("\n")
-    print(f"Wrote {config_path}")
+    config_path = cwd / "sweat.config.json"
+    if not config_path.exists():
+        config_path.write_text(json.dumps(starter_config, indent=2) + "\n")
+        print(f"Wrote {config_path}")
+    else:
+        print(f"Skipped {config_path} (already exists)")
 
-    compose_path = os.path.join(os.getcwd(), "docker-compose.yml")
-    if not os.path.exists(compose_path):
-        with open(compose_path, "w") as f:
-            f.write(_COMPOSE_TEMPLATE)
+    compose_path = cwd / "docker-compose.yml"
+    if not compose_path.exists():
+        compose_path.write_text(_COMPOSE_TEMPLATE)
         print(f"Wrote {compose_path}")
     else:
         print(f"Skipped {compose_path} (already exists)")
@@ -271,14 +278,17 @@ def _cmd_init() -> None:
 
 
 def _cmd_up(detach: bool) -> None:
-    compose_path = os.path.join(os.getcwd(), "docker-compose.yml")
-    if not os.path.exists(compose_path):
+    if not (Path.cwd() / "docker-compose.yml").exists():
         print("No docker-compose.yml found. Run 'sweat init' first.")
         sys.exit(1)
     cmd = ["docker", "compose", "up", "--build"]
     if detach:
         cmd.append("-d")
-    subprocess.run(cmd, check=True)
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Docker Compose failed (exit code {e.returncode})")
+        sys.exit(e.returncode)
 
 
 def main() -> None:
