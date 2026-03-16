@@ -1,6 +1,8 @@
+import logging
 import time
 from dataclasses import dataclass
-from claude_agent_sdk import query, ClaudeAgentOptions
+
+from claude_agent_sdk import ClaudeAgentOptions, query
 
 import telemetry
 from exceptions import AgentError
@@ -21,8 +23,15 @@ async def run_agent(repo_path: str | None, prompt: str) -> AgentResult:
             telemetry.claude_calls.add(1)
         start = time.monotonic()
         try:
+            stderr_lines: list[str] = []
+
+            def _capture_stderr(line: str) -> None:
+                stderr_lines.append(line)
+                logging.warning(f"[claude stderr] {line}")
+
             options = ClaudeAgentOptions(
-                permission_mode="acceptEdits",
+                permission_mode="bypassPermissions",
+                stderr=_capture_stderr,
                 **({"cwd": repo_path} if repo_path else {}),
             )
             summary_parts = []
@@ -34,11 +43,14 @@ async def run_agent(repo_path: str | None, prompt: str) -> AgentResult:
         except Exception as exc:
             span.set_status(telemetry.trace.StatusCode.ERROR, str(exc))
             span.record_exception(exc)
+            stderr_output = "\n".join(stderr_lines)
+            if stderr_output:
+                logging.error(f"Claude stderr:\n{stderr_output}")
             msg = str(exc)
             if "exit code 1" in msg or "exit code: 1" in msg:
+                detail = stderr_output or "no stderr captured"
                 raise AgentError(
-                    "Claude CLI exited with code 1 — you may need to re-authenticate. "
-                    "Run `claude` interactively and log in, then retry."
+                    f"Claude CLI exited with code 1: {detail}"
                 ) from exc
             raise AgentError(f"Agent failed: {exc}") from exc
         finally:
