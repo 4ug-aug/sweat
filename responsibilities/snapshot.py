@@ -36,15 +36,19 @@ async def build_pr_snapshot(
     if not all_prs:
         return PRSnapshot(prs=[], reviews={}, check_status={}, comment_threads={}, bot_login=bot_login)
 
-    # Fetch reviews, check_status, comment_threads for each PR in parallel
+    # Fetch reviews, check_status, comment_threads for each PR — limit concurrency
+    # to avoid exhausting the HTTP connection pool (3 calls per PR).
+    _sem = asyncio.Semaphore(3)
+
     async def fetch_pr_data(pr: dict) -> tuple[int, list[dict], str, list[dict]]:
         repo = pr["repo"]
         pr_number = pr["number"]
-        reviews, status, threads = await asyncio.gather(
-            github.get_pr_reviews_async(repo, pr_number),
-            github.get_pr_check_status_async(repo, pr_number),
-            github.get_pr_comment_threads_async(repo, pr_number),
-        )
+        async with _sem:
+            reviews, status, threads = await asyncio.gather(
+                github.get_pr_reviews_async(repo, pr_number),
+                github.get_pr_check_status_async(repo, pr_number),
+                github.get_pr_comment_threads_async(repo, pr_number),
+            )
         return pr_number, reviews, status, threads
 
     results = await asyncio.gather(*[fetch_pr_data(pr) for pr in all_prs])
