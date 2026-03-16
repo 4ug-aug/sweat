@@ -13,6 +13,8 @@ GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 
 AUDIT_LOG_PATH = os.environ.get("AUDIT_LOG_PATH", "audit.jsonl")
 
+RESPONSIBILITIES_STATE_PATH = os.environ.get("RESPONSIBILITIES_STATE_PATH", "responsibilities_state.json")
+
 
 def _load_agents() -> list[dict]:
     """Load agents from sweat.config.json in CWD. Errors if not found."""

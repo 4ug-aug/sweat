@@ -25,3 +25,12 @@ class BaseAgent(ABC):
     @abstractmethod
     def default_interval(self) -> int:
         """Default seconds between runs."""
+
+    def get_loops(self) -> dict[str, int]:
+        """Named loops with intervals. Default: just 'main' using default_interval."""
+        return {"main": self.default_interval}
+
+    async def run_loop(self, loop_name: str) -> None:
+        """Dispatch to loop handler. Default: 'main' calls run_once()."""
+        if loop_name == "main":
+            await self.run_once()

@@ -26,6 +26,8 @@ def _make_agent():
     github.get_bot_login_async = AsyncMock()
     github.get_open_prs_async = AsyncMock()
     github.has_bot_reviewed_async = AsyncMock()
+    github.get_latest_review_timestamp_async = AsyncMock()
+    github.get_latest_commit_timestamp_async = AsyncMock()
     github.get_pr_metadata_async = AsyncMock()
     github.get_pr_diff_async = AsyncMock()
     github.get_repo_summary_async = AsyncMock()
@@ -81,10 +83,35 @@ async def test_skips_already_reviewed_pr():
         {"number": 5, "title": "Some PR", "head_branch": "fix/something", "html_url": "..."}
     ]
     agent.github.has_bot_reviewed_async.return_value = True
+    agent.github.get_latest_review_timestamp_async.return_value = "2024-01-01T12:00:00Z"
+    agent.github.get_latest_commit_timestamp_async.return_value = "2024-01-01T11:00:00Z"
 
     await agent.run_once()
 
     agent.github.get_pr_metadata_async.assert_not_called()
+
+
+@patch("agents.reviewer.run_agent", new_callable=AsyncMock)
+async def test_rereviews_pr_with_new_commits(mock_run_agent):
+    agent = _make_agent()
+    agent.github.get_bot_login_async.return_value = "sweat-bot"
+    agent.github.get_open_prs_async.return_value = [
+        {"number": 6, "title": "Updated PR", "head_branch": "fix/updated", "html_url": "..."}
+    ]
+    agent.github.has_bot_reviewed_async.return_value = True
+    agent.github.get_latest_review_timestamp_async.return_value = "2024-01-01T10:00:00Z"
+    agent.github.get_latest_commit_timestamp_async.return_value = "2024-01-01T12:00:00Z"
+    agent.github.get_pr_metadata_async.return_value = {
+        "number": 6, "title": "Updated PR", "body": "", "author_login": "dev",
+        "head_branch": "fix/updated", "base_branch": "main", "html_url": "...",
+    }
+    agent.github.get_pr_diff_async.return_value = "diff"
+    agent.github.get_repo_summary_async.return_value = "summary"
+    mock_run_agent.return_value = AgentResult(success=True, summary="LGTM again")
+
+    await agent.run_once()
+
+    agent.github.post_pr_review_async.assert_called_once_with("org/repo", 6, body="LGTM again")
 
 
 async def test_iterates_all_configured_repos():

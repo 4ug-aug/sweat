@@ -84,28 +84,29 @@ def _build_agents(type_filter: str | None = None):
                 asana=asana,
             )
             interval = agent_cfg.get("interval", agent.default_interval)
-            initial_delay = i * (interval / replicas) if replicas > 1 else 0
-            agents.append((agent, interval, initial_delay))
+            for loop_name, loop_interval in agent.get_loops().items():
+                loop_initial_delay = i * (loop_interval / replicas) if replicas > 1 else 0
+                agents.append((agent, loop_name, loop_interval, loop_initial_delay))
     return agents
 
 
-async def _agent_loop(agent, interval: int, initial_delay: float = 0) -> None:
+async def _agent_loop(agent, loop_name: str, interval: int, initial_delay: float = 0) -> None:
     if initial_delay > 0:
         logging.info(f"Agent {agent.agent_id!r} waiting {initial_delay:.0f}s before first run")
         await asyncio.sleep(initial_delay)
-    logging.info(f"Agent {agent.agent_id!r} loop started (every {interval}s)")
+    logging.info(f"Agent {agent.agent_id!r} [{loop_name}] loop started (every {interval}s)")
     while True:
         tracer = telemetry.tracer()
         with tracer.start_as_current_span(
             "agent.run_once",
-            attributes={"agent.id": agent.agent_id, "agent.type": agent.config.get("type", "")},
+            attributes={"agent.id": agent.agent_id, "agent.type": agent.config.get("type", ""), "agent.loop": loop_name},
         ) as span:
             try:
-                logging.info(f"Agent {agent.agent_id!r}: running")
+                logging.info(f"Agent {agent.agent_id!r} [{loop_name}]: running")
                 if telemetry.agent_runs:
                     telemetry.agent_runs.add(1, {"agent.id": agent.agent_id})
                 start = time.monotonic()
-                await agent.run_once()
+                await agent.run_loop(loop_name)
                 if telemetry.agent_run_duration:
                     telemetry.agent_run_duration.record(time.monotonic() - start, {"agent.id": agent.agent_id})
             except Exception as exc:
@@ -129,7 +130,7 @@ async def _start() -> None:
         return
 
     logging.info(f"sweat service starting — {len(agents)} agent(s)")
-    tasks = [asyncio.create_task(_agent_loop(agent, interval, delay)) for agent, interval, delay in agents]
+    tasks = [asyncio.create_task(_agent_loop(agent, loop_name, interval, delay)) for agent, loop_name, interval, delay in agents]
     try:
         await stop
     finally:
@@ -141,7 +142,7 @@ async def _start() -> None:
 
 async def _run_once(type_filter: str) -> None:
     agents = _build_agents(type_filter=type_filter)
-    for agent, _interval, _delay in agents:
+    for agent, _loop_name, _interval, _delay in agents:
         await agent.run_once()
 
 
@@ -177,6 +178,12 @@ def _format_log_entry(record: dict) -> str:
         detail = f"error: {record.get('error', '')}"
     elif event == "code_review_duplicate_skipped":
         detail = f"duplicate: {record.get('title', '')}"
+    elif event == "review_feedback_addressed":
+        detail = f"PR #{record.get('pr_number', '')} in {repo}"
+    elif event == "ci_failure_addressed":
+        detail = f"PR #{record.get('pr_number', '')} in {repo}"
+    elif event == "pr_comment_addressed":
+        detail = f"PR #{record.get('pr_number', '')} in {repo}"
     else:
         detail = str({k: v for k, v in record.items() if k not in ("timestamp", "event", "repo", "agent_id")})
 

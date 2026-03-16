@@ -134,6 +134,133 @@ class GitHubClient:
     ) -> None:
         self._gh.get_repo(repo).get_pull(pr_number).create_review(body=body, event=event)
 
+    def get_pr_reviews(self, repo: str, pr_number: int) -> list[dict]:
+        try:
+            reviews = self._gh.get_repo(repo).get_pull(pr_number).get_reviews()
+            return [
+                {
+                    "id": r.id,
+                    "user_login": r.user.login,
+                    "state": r.state,
+                    "body": r.body or "",
+                    "submitted_at": r.submitted_at.isoformat() if r.submitted_at else None,
+                }
+                for r in reviews
+            ]
+        except Exception as exc:
+            raise GitHubError(f"Failed to get reviews for {repo}#{pr_number}: {exc}") from exc
+
+    def get_review_comments(self, repo: str, pr_number: int, review_id: int) -> list[dict]:
+        try:
+            review = self._gh.get_repo(repo).get_pull(pr_number).get_review(review_id)
+            comments = review.get_comments()
+            return [
+                {
+                    "path": c.path,
+                    "line": c.original_line,
+                    "body": c.body,
+                }
+                for c in comments
+            ]
+        except Exception as exc:
+            raise GitHubError(f"Failed to get review comments for {repo}#{pr_number} review {review_id}: {exc}") from exc
+
+    def checkout_branch(self, repo_path: str, branch: str) -> None:
+        try:
+            repo = git.Repo(repo_path)
+            repo.git.fetch("origin")
+            repo.git.checkout(branch)
+        except Exception as exc:
+            raise GitHubError(f"Failed to checkout branch {branch}: {exc}") from exc
+
+    def post_pr_comment(self, repo: str, pr_number: int, body: str) -> None:
+        try:
+            self._gh.get_repo(repo).get_issue(pr_number).create_comment(body)
+        except Exception as exc:
+            raise GitHubError(f"Failed to post comment on {repo}#{pr_number}: {exc}") from exc
+
+    def get_pr_check_status(self, repo: str, pr_number: int) -> str:
+        try:
+            pr = self._gh.get_repo(repo).get_pull(pr_number)
+            sha = pr.head.sha
+            status = self._gh.get_repo(repo).get_commit(sha).get_combined_status()
+            return status.state  # "success", "failure", "pending", "error"
+        except Exception as exc:
+            raise GitHubError(f"Failed to get check status for {repo}#{pr_number}: {exc}") from exc
+
+    def get_failed_check_details(self, repo: str, pr_number: int) -> list[dict]:
+        try:
+            pr = self._gh.get_repo(repo).get_pull(pr_number)
+            sha = pr.head.sha
+            check_runs = self._gh.get_repo(repo).get_commit(sha).get_check_runs()
+            return [
+                {
+                    "name": run.name,
+                    "output": (run.output.text or "")[:3000] if run.output else "",
+                }
+                for run in check_runs
+                if run.conclusion == "failure"
+            ]
+        except Exception as exc:
+            raise GitHubError(f"Failed to get failed checks for {repo}#{pr_number}: {exc}") from exc
+
+    def get_pr_comment_threads(self, repo: str, pr_number: int) -> list[dict]:
+        try:
+            comments = list(self._gh.get_repo(repo).get_pull(pr_number).get_review_comments())
+            # Group by in_reply_to_id
+            roots = [c for c in comments if not getattr(c, "in_reply_to_id", None)]
+            replies_by_root: dict[int, list] = {}
+            for c in comments:
+                parent_id = getattr(c, "in_reply_to_id", None)
+                if parent_id is not None:
+                    replies_by_root.setdefault(parent_id, []).append(c)
+
+            def _comment_dict(c) -> dict:
+                return {
+                    "id": c.id,
+                    "user_login": c.user.login,
+                    "body": c.body,
+                    "path": c.path,
+                    "line": getattr(c, "original_line", None),
+                    "created_at": c.created_at.isoformat() if c.created_at else None,
+                }
+
+            return [
+                {
+                    "root": _comment_dict(root),
+                    "replies": [_comment_dict(r) for r in replies_by_root.get(root.id, [])],
+                }
+                for root in roots
+            ]
+        except Exception as exc:
+            raise GitHubError(f"Failed to get comment threads for {repo}#{pr_number}: {exc}") from exc
+
+    def reply_to_pr_comment(self, repo: str, pr_number: int, comment_id: int, body: str) -> None:
+        try:
+            self._gh.get_repo(repo).get_pull(pr_number).create_review_comment_reply(comment_id, body)
+        except Exception as exc:
+            raise GitHubError(f"Failed to reply to comment {comment_id} on {repo}#{pr_number}: {exc}") from exc
+
+    def get_latest_review_timestamp(self, repo: str, pr_number: int, bot_login: str) -> str | None:
+        try:
+            reviews = self._gh.get_repo(repo).get_pull(pr_number).get_reviews()
+            bot_reviews = [r for r in reviews if r.user.login == bot_login and r.submitted_at]
+            if not bot_reviews:
+                return None
+            latest = max(bot_reviews, key=lambda r: r.submitted_at)
+            return latest.submitted_at.isoformat()
+        except Exception as exc:
+            raise GitHubError(f"Failed to get latest review timestamp for {repo}#{pr_number}: {exc}") from exc
+
+    def get_latest_commit_timestamp(self, repo: str, pr_number: int) -> str:
+        try:
+            pr = self._gh.get_repo(repo).get_pull(pr_number)
+            sha = pr.head.sha
+            commit = pr.head.repo.get_commit(sha)
+            return commit.commit.author.date.isoformat()
+        except Exception as exc:
+            raise GitHubError(f"Failed to get latest commit timestamp for {repo}#{pr_number}: {exc}") from exc
+
     # Async wrappers — delegate to sync methods via to_thread to unblock the event loop.
 
     async def get_repo_summary_async(self, repo: str) -> str:
@@ -170,3 +297,33 @@ class GitHubClient:
         self, repo: str, pr_number: int, body: str, event: str = "COMMENT"
     ) -> None:
         await asyncio.to_thread(self.post_pr_review, repo, pr_number, body, event)
+
+    async def get_pr_reviews_async(self, repo: str, pr_number: int) -> list[dict]:
+        return await asyncio.to_thread(self.get_pr_reviews, repo, pr_number)
+
+    async def get_review_comments_async(self, repo: str, pr_number: int, review_id: int) -> list[dict]:
+        return await asyncio.to_thread(self.get_review_comments, repo, pr_number, review_id)
+
+    async def checkout_branch_async(self, repo_path: str, branch: str) -> None:
+        await asyncio.to_thread(self.checkout_branch, repo_path, branch)
+
+    async def post_pr_comment_async(self, repo: str, pr_number: int, body: str) -> None:
+        await asyncio.to_thread(self.post_pr_comment, repo, pr_number, body)
+
+    async def get_pr_check_status_async(self, repo: str, pr_number: int) -> str:
+        return await asyncio.to_thread(self.get_pr_check_status, repo, pr_number)
+
+    async def get_failed_check_details_async(self, repo: str, pr_number: int) -> list[dict]:
+        return await asyncio.to_thread(self.get_failed_check_details, repo, pr_number)
+
+    async def get_pr_comment_threads_async(self, repo: str, pr_number: int) -> list[dict]:
+        return await asyncio.to_thread(self.get_pr_comment_threads, repo, pr_number)
+
+    async def reply_to_pr_comment_async(self, repo: str, pr_number: int, comment_id: int, body: str) -> None:
+        await asyncio.to_thread(self.reply_to_pr_comment, repo, pr_number, comment_id, body)
+
+    async def get_latest_review_timestamp_async(self, repo: str, pr_number: int, bot_login: str) -> str | None:
+        return await asyncio.to_thread(self.get_latest_review_timestamp, repo, pr_number, bot_login)
+
+    async def get_latest_commit_timestamp_async(self, repo: str, pr_number: int) -> str:
+        return await asyncio.to_thread(self.get_latest_commit_timestamp, repo, pr_number)

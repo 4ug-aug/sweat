@@ -36,17 +36,23 @@ class ReviewerAgent(BaseAgent):
                     )
                     continue
                 if await self.github.has_bot_reviewed_async(repo, pr["number"], bot_login):
+                    latest_review = await self.github.get_latest_review_timestamp_async(repo, pr["number"], bot_login)
+                    latest_commit = await self.github.get_latest_commit_timestamp_async(repo, pr["number"])
+                    if latest_review is not None and latest_commit <= latest_review:
+                        logging.info(
+                            f"[{self.agent_id}] PR #{pr['number']}: no new commits since last review, skipping"
+                        )
+                        audit.log_event(
+                            "pr_skipped",
+                            agent_id=self.agent_id,
+                            repo=repo,
+                            pr_number=pr["number"],
+                            reason="already_reviewed_no_new_commits",
+                        )
+                        continue
                     logging.info(
-                        f"[{self.agent_id}] Already reviewed PR #{pr['number']}, skipping"
+                        f"[{self.agent_id}] PR #{pr['number']}: new commits since last review, re-reviewing"
                     )
-                    audit.log_event(
-                        "pr_skipped",
-                        agent_id=self.agent_id,
-                        repo=repo,
-                        pr_number=pr["number"],
-                        reason="already_reviewed",
-                    )
-                    continue
                 logging.info(
                     f"[{self.agent_id}] Reviewing PR #{pr['number']}: {pr['title']}"
                 )

@@ -24,10 +24,66 @@ class ImplementerAgent(BaseAgent):
     def __init__(self, *, dry_run: bool = False, **kwargs):
         super().__init__(**kwargs)
         self.dry_run = dry_run
+        from responsibilities.claims import ResponsibilityClaims
+        from responsibilities.registry import RESPONSIBILITY_TYPES
+        from responsibilities.state import JsonFileState
+        self._state = JsonFileState()
+        self._resp_claims = ResponsibilityClaims.get()
+        responsibility_names = self.config.get("responsibilities", ["review_responder", "ci_responder", "comment_responder"])
+        self._responsibilities = [
+            RESPONSIBILITY_TYPES[name]()
+            for name in responsibility_names
+            if name in RESPONSIBILITY_TYPES
+        ]
 
     @property
     def default_interval(self) -> int:
         return 3600
+
+    def get_loops(self) -> dict[str, int]:
+        return {
+            "main": self.config.get("task_interval", self.default_interval),
+            "responsibilities": self.config.get("responsibilities_interval", 300),
+        }
+
+    async def run_loop(self, loop_name: str) -> None:
+        if loop_name == "responsibilities":
+            await self.check_responsibilities()
+        else:
+            await self.run_once()
+
+    async def check_responsibilities(self) -> None:
+        from responsibilities.snapshot import build_pr_snapshot
+
+        projects = self.config.get("projects", [])
+        repos = [p["github_repo"] for p in projects]
+        branch_prefixes = [p["branch_prefix"] for p in projects]
+        branch_prefix = branch_prefixes[0] if branch_prefixes else "agent/"
+
+        bot_login = await self.github.get_bot_login_async()
+
+        snapshot = await build_pr_snapshot(self.github, repos, branch_prefix, bot_login)
+
+        # Cleanup stale state entries
+        open_pr_keys = {f"{pr['repo']}#PR{pr['number']}" for pr in snapshot.prs}
+        self._state.cleanup(open_pr_keys)
+
+        # Check responsibilities in priority order, handle first found item
+        for responsibility in self._responsibilities:
+            items = await responsibility.check(snapshot, self._state)
+            for item in items:
+                if await self._resp_claims.is_claimed(item.event_key):
+                    continue
+                if not await self._resp_claims.try_claim(item.event_key):
+                    continue
+                try:
+                    logging.info(f"[{self.agent_id}] Handling responsibility: {item.kind} on {item.repo}#{item.pr_number}")
+                    await responsibility.execute(item, self.github, self.asana, self.agent_id)
+                    return  # one item per cycle
+                finally:
+                    await self._resp_claims.release(item.event_key)
+
+        logging.info(f"[{self.agent_id}] No responsibilities to handle")
 
     async def run_once(self) -> None:
         projects = self.config.get("projects", [])
