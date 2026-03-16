@@ -201,15 +201,70 @@ def _cmd_log(last: int) -> None:
             print(line)
 
 
+def _pick(items: list[dict], name_key: str, noun: str) -> dict:
+    """Prompt user to select one item from a numbered list; defaults to first."""
+    if len(items) == 1:
+        print(f"Using {noun}: {items[0][name_key]}")
+        return items[0]
+    print(f"\nAvailable {noun}s:")
+    for i, item in enumerate(items, 1):
+        print(f"  {i}. {item[name_key]}")
+    raw = input(f"Select {noun} [1]: ").strip()
+    try:
+        idx = int(raw) - 1 if raw else 0
+    except ValueError:
+        idx = 0
+    return items[max(0, min(idx, len(items) - 1))]
+
+
 def _cmd_init() -> None:
-    """Interactive setup: prompt for credentials and write config files."""
+    """Interactive setup: validate credentials, discover config, write files."""
     print("sweat init — interactive setup\n")
 
     asana_token = getpass.getpass("Asana personal access token: ")
     github_token = getpass.getpass("GitHub personal access token: ")
-    asana_assignee_gid = input("Asana assignee GID (the user GID the agent works as): ")
-    asana_project_id = input("Asana project ID: ")
-    github_repo = input("GitHub repo (owner/name): ")
+
+    print("\nValidating tokens...")
+
+    try:
+        asana_client = AsanaClient(asana_token)
+        me = asana_client.get_current_user()
+        asana_assignee_gid = me["gid"]
+        print(f"  Asana:  authenticated as {me['name']}")
+    except Exception:
+        print("  Asana:  invalid token — check it and try again.")
+        sys.exit(1)
+
+    try:
+        github_client = GitHubClient(github_token)
+        gh_login = github_client.get_bot_login()
+        print(f"  GitHub: authenticated as {gh_login}")
+    except Exception:
+        print("  GitHub: invalid token — check it and try again.")
+        sys.exit(1)
+
+    try:
+        workspaces = asana_client.get_workspaces()
+    except Exception:
+        print("Failed to fetch Asana workspaces.")
+        sys.exit(1)
+    if not workspaces:
+        print("No Asana workspaces found for this token.")
+        sys.exit(1)
+    workspace = _pick(workspaces, "name", "workspace")
+
+    try:
+        projects = asana_client.get_projects(workspace["gid"])
+    except Exception:
+        print(f"Failed to fetch projects for workspace '{workspace['name']}'.")
+        sys.exit(1)
+    if not projects:
+        print(f"No projects found in workspace '{workspace['name']}'.")
+        sys.exit(1)
+    project = _pick(projects, "name", "project")
+    asana_project_id = project["gid"]
+
+    github_repo = input("\nGitHub repo (owner/name): ").strip()
 
     cwd = Path.cwd()
 

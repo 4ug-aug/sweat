@@ -17,6 +17,18 @@ class _Client:
         self._api_client = asana.ApiClient(configuration)
 
     @property
+    def users(self):
+        return _UsersProxy(self._api_client)
+
+    @property
+    def workspaces(self):
+        return _WorkspacesProxy(self._api_client)
+
+    @property
+    def projects(self):
+        return _ProjectsProxy(self._api_client)
+
+    @property
     def tasks(self):
         return _TasksProxy(self._api_client)
 
@@ -27,6 +39,30 @@ class _Client:
     @property
     def time_tracking(self):
         return _TimeTrackingProxy(self._api_client)
+
+
+class _UsersProxy:
+    def __init__(self, api_client):
+        self._api = asana.UsersApi(api_client)
+
+    def get_me(self):
+        return self._api.get_me({"opt_fields": "gid,name,email"})
+
+
+class _WorkspacesProxy:
+    def __init__(self, api_client):
+        self._api = asana.WorkspacesApi(api_client)
+
+    def get_workspaces(self):
+        return self._api.get_workspaces({"opt_fields": "gid,name"})
+
+
+class _ProjectsProxy:
+    def __init__(self, api_client):
+        self._api = asana.ProjectsApi(api_client)
+
+    def get_projects_for_workspace(self, workspace_gid):
+        return self._api.get_projects_for_workspace(workspace_gid, {"opt_fields": "gid,name"})
 
 
 class _TasksProxy:
@@ -71,6 +107,24 @@ class _TimeTrackingProxy:
 class AsanaClient:
     def __init__(self, token: str):
         self._client = _Client(token)
+
+    def get_current_user(self) -> dict:
+        try:
+            return self._client.users.get_me()
+        except Exception as exc:
+            raise AsanaError(f"Failed to get current user: {exc}") from exc
+
+    def get_workspaces(self) -> list[dict]:
+        try:
+            return list(self._client.workspaces.get_workspaces())
+        except Exception as exc:
+            raise AsanaError(f"Failed to get workspaces: {exc}") from exc
+
+    def get_projects(self, workspace_gid: str) -> list[dict]:
+        try:
+            return list(self._client.projects.get_projects_for_workspace(workspace_gid))
+        except Exception as exc:
+            raise AsanaError(f"Failed to get projects for workspace {workspace_gid}: {exc}") from exc
 
     def get_unassigned_tasks(self, project_id: str) -> list[dict]:
         try:

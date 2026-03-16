@@ -1,9 +1,18 @@
 [project]
 name = "sweat-agent"
 version = "0.1.0"
-description = "Digital twin agent — picks Asana tasks and implements them via Claude Code"
+description = "Autonomous software engineering agent — picks Asana tasks, writes code via Claude Code, opens GitHub PRs"
 readme = "README.md"
 requires-python = ">=3.11"
+license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: MIT License",
+]
 dependencies = [
     "claude-agent-sdk>=0.0.14",
     "asana>=5.0.0",
@@ -14,6 +23,10 @@ dependencies = [
     "opentelemetry-sdk>=1.20.0",
     "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/augusttollerup/sweat"
+Source = "https://github.com/augusttollerup/sweat"
 
 [build-system]
 requires = ["setuptools>=68.0"]

@@ -1,7 +1,16 @@
 Metadata-Version: 2.4
 Name: sweat-agent
 Version: 0.1.0
-Summary: Digital twin agent — picks Asana tasks and implements them via Claude Code
+Summary: Autonomous software engineering agent — picks Asana tasks, writes code via Claude Code, opens GitHub PRs
+License: MIT
+Project-URL: Homepage, https://github.com/augusttollerup/sweat
+Project-URL: Source, https://github.com/augusttollerup/sweat
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Classifier: Operating System :: OS Independent
+Classifier: License :: OSI Approved :: MIT License
 Requires-Python: >=3.11
 Description-Content-Type: text/markdown
 Requires-Dist: claude-agent-sdk>=0.0.14
