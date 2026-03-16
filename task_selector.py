@@ -51,10 +51,7 @@ async def select_task(tasks: list[dict], repo_context: str = "") -> dict | None:
         start = time.monotonic()
         text = ""
         try:
-            async for message in query(prompt=prompt, options=ClaudeAgentOptions(
-                permission_mode="bypassPermissions",
-                stderr=lambda line: logging.warning(f"[claude stderr] {line}"),
-            )):
+            async for message in query(prompt=prompt, options=ClaudeAgentOptions()):
                 if hasattr(message, "content"):
                     for block in message.content:
                         if hasattr(block, "text"):
