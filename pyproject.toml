@@ -1,6 +1,6 @@
 [project]
 name = "sweat-agent"
-version = "0.1.0"
+version = "0.1.1"
 description = "Autonomous software engineering agent — picks Asana tasks, writes code via Claude Code, opens GitHub PRs"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -29,8 +29,8 @@ Homepage = "https://github.com/augusttollerup/sweat"
 Source = "https://github.com/augusttollerup/sweat"
 
 [build-system]
-requires = ["setuptools>=68.0"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
@@ -39,17 +39,14 @@ dev = [
 ]
 
 [project.scripts]
-sweat = "cli:main"
+sweat-agent = "cli:main"
 
-[tool.setuptools]
-py-modules = [
-    "cli", "config", "agent", "audit", "task_selector",
-    "task_filter", "task_claims", "telemetry", "exceptions", "main",
+[tool.hatch.build.targets.wheel]
+packages = [
+    "agents", "clients", "prompts", "knowledge",
+    "cli.py", "config.py", "agent.py", "audit.py", "task_selector.py",
+    "task_filter.py", "task_claims.py", "telemetry.py", "exceptions.py", "main.py",
 ]
-packages = ["agents", "clients", "prompts", "knowledge"]
-
-[tool.setuptools.package-data]
-knowledge = ["**/*.md"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
