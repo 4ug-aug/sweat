@@ -185,3 +185,17 @@ def test_get_tasks_returns_incomplete(mock_client_class):
     assert len(tasks) == 2
     assert tasks[0] == {"gid": "111", "name": "Open task"}
     assert tasks[1] == {"gid": "333", "name": "Another open"}
+
+
+@patch("clients.asana._Client")
+def test_create_task_html_notes_takes_precedence_over_notes(mock_client_class):
+    mock_client = MagicMock()
+    mock_client_class.return_value = mock_client
+    mock_client.tasks.create_task.return_value = {"gid": "999", "name": "Task"}
+
+    client = AsanaClient("test-token")
+    client.create_task("PROJECT_GID", "Task", notes="plain", html_notes="<body>rich</body>")
+
+    call_body = mock_client.tasks.create_task.call_args[0][0]
+    assert call_body["html_notes"] == "<body>rich</body>"
+    assert "notes" not in call_body
