@@ -292,7 +292,7 @@ def test_app_mode_token_for_owner_cache_miss(mock_github_class, mock_integration
     mock_inst = MagicMock()
     mock_inst.account.login = "myorg"
     mock_inst.id = 99
-    mock_gh.get_app.return_value.get_installations.return_value = [mock_inst]
+    mock_integration.get_installations.return_value = [mock_inst]
     mock_access = MagicMock()
     mock_access.token = "inst-token-abc"
     mock_access.expires_at = expires_at
@@ -332,7 +332,7 @@ def test_app_mode_token_for_owner_near_expiry_refreshes(mock_github_class, mock_
     mock_inst = MagicMock()
     mock_inst.account.login = "myorg"
     mock_inst.id = 42
-    mock_gh.get_app.return_value.get_installations.return_value = [mock_inst]
+    mock_integration.get_installations.return_value = [mock_inst]
     mock_access = MagicMock()
     mock_access.token = "fresh-token"
     mock_access.expires_at = new_expiry
@@ -347,10 +347,10 @@ def test_app_mode_token_for_owner_near_expiry_refreshes(mock_github_class, mock_
 @patch("clients.github.GithubIntegration")
 @patch("clients.github.Github")
 def test_app_mode_token_for_owner_not_found_raises(mock_github_class, mock_integration_class):
-    client, mock_gh, _ = _make_app_client(mock_github_class, mock_integration_class)
+    client, mock_gh, mock_integration = _make_app_client(mock_github_class, mock_integration_class)
     mock_inst = MagicMock()
     mock_inst.account.login = "otherorg"
-    mock_gh.get_app.return_value.get_installations.return_value = [mock_inst]
+    mock_integration.get_installations.return_value = [mock_inst]
 
     with pytest.raises(ValueError, match="No GitHub App installation found for owner: myorg"):
         client._token_for_owner("myorg")
@@ -369,7 +369,7 @@ def test_app_mode_clone_repo_uses_installation_token(mock_github_class, mock_int
     mock_inst = MagicMock()
     mock_inst.account.login = "myorg"
     mock_inst.id = 7
-    mock_gh.get_app.return_value.get_installations.return_value = [mock_inst]
+    mock_integration.get_installations.return_value = [mock_inst]
     mock_access = MagicMock()
     mock_access.token = "install-token-xyz"
     mock_access.expires_at = expires_at

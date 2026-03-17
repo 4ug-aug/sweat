@@ -35,7 +35,7 @@ class GitHubClient:
             token, expires_at = cached
             if datetime.now(timezone.utc) < expires_at - timedelta(minutes=5):
                 return token
-        for inst in self._gh.get_app().get_installations():
+        for inst in self._integration.get_installations():
             if inst.account.login == owner:
                 access = self._integration.get_access_token(inst.id)
                 self._install_cache[owner] = (access.token, access.expires_at)
