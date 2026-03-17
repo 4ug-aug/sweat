@@ -132,11 +132,54 @@ def _parse_findings(summary: str) -> list[dict]:
     try:
         data = json.loads(text)
     except json.JSONDecodeError:
+        # JSON may be truncated — try to salvage complete finding objects
+        findings = _extract_partial_findings(text)
+        if findings:
+            logging.warning(
+                f"Code review: JSON truncated, recovered {len(findings)} finding(s): {text[:200]}"
+            )
+            return findings
         logging.error(f"Code review: failed to parse JSON: {text[:200]}")
         return []
     if isinstance(data, dict) and "findings" in data:
         return data["findings"]
     return []
+
+
+def _extract_partial_findings(text: str) -> list[dict]:
+    """Extract complete JSON objects from a truncated findings array."""
+    findings = []
+    depth = 0
+    start = None
+    in_string = False
+    i = 0
+    while i < len(text):
+        ch = text[i]
+        if in_string:
+            if ch == "\\":
+                i += 2  # skip escaped character
+                continue
+            elif ch == '"':
+                in_string = False
+        else:
+            if ch == '"':
+                in_string = True
+            elif ch == "{":
+                if depth == 0:
+                    start = i
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0 and start is not None:
+                    try:
+                        obj = json.loads(text[start : i + 1])
+                        if isinstance(obj, dict) and "title" in obj:
+                            findings.append(obj)
+                    except json.JSONDecodeError:
+                        pass
+                    start = None
+        i += 1
+    return findings
 
 
 def _is_duplicate(title: str, existing_titles: list[str]) -> bool:
