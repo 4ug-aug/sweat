@@ -12,7 +12,6 @@ import json
 import logging
 import os
 import signal
-import subprocess
 import time
 from pathlib import Path
 
@@ -24,20 +23,6 @@ from rich.table import Table
 import config
 import telemetry
 
-_COMPOSE_TEMPLATE = """\
-services:
-  sweat:
-    build: .
-    env_file: .env
-    environment:
-      - AUDIT_LOG_PATH=/app/data/audit.jsonl
-    volumes:
-      - audit-data:/app/data
-    restart: unless-stopped
-
-volumes:
-  audit-data:
-"""
 from agents.registry import AGENT_TYPES
 from clients.asana import AsanaClient
 from clients.github import GitHubClient
@@ -435,35 +420,12 @@ def _cmd_init() -> None:
     else:
         config_msg = f"[yellow]  → Skipped {config_path} (already exists)[/yellow]"
 
-    # Write docker-compose.yml
-    compose_path = cwd / "docker-compose.yml"
-    if not compose_path.exists():
-        compose_path.write_text(_COMPOSE_TEMPLATE)
-        compose_msg = f"[green]  ✓ Wrote {compose_path}[/green]"
-    else:
-        compose_msg = f"[yellow]  → Skipped {compose_path} (already exists)[/yellow]"
-
     console.print(Panel("[bold]Setup complete[/bold]"))
     console.print(env_msg)
     console.print(config_msg)
-    console.print(compose_msg)
     console.print("\nNext steps:")
     console.print("  1. Review and customize sweat.config.json (field_names, field_filters, etc.)")
-    console.print("  2. Run: sweat up")
-
-
-def _cmd_up(detach: bool) -> None:
-    if not (Path.cwd() / "docker-compose.yml").exists():
-        console.print("[red]No docker-compose.yml found. Run 'sweat init' first.[/red]")
-        raise typer.Exit(1)
-    cmd = ["docker", "compose", "up", "--build"]
-    if detach:
-        cmd.append("-d")
-    try:
-        subprocess.run(cmd, check=True)
-    except subprocess.CalledProcessError as e:
-        console.print(f"[red]Docker Compose failed (exit code {e.returncode})[/red]")
-        raise typer.Exit(code=e.returncode)
+    console.print("  2. Run: sweat start")
 
 
 @app.command()
@@ -498,16 +460,8 @@ def log(
 
 @app.command()
 def init() -> None:
-    """Interactive setup: create .env, sweat.config.json, and docker-compose.yml."""
+    """Interactive setup: create .env and sweat.config.json."""
     _cmd_init()
-
-
-@app.command()
-def up(
-    detach: bool = typer.Option(False, "--detach", "-d", help="Run containers in background"),
-) -> None:
-    """Build and start sweat via Docker Compose."""
-    _cmd_up(detach)
 
 
 def main() -> None:
