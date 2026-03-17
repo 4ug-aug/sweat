@@ -497,6 +497,18 @@ def init() -> None:
     _cmd_init()
 
 
+@app.command()
+def dashboard(
+    port: int = typer.Option(8383, "--port", help="Port to serve on"),
+    host: str = typer.Option("127.0.0.1", "--host", help="Host to bind to"),
+) -> None:
+    """Start the dashboard web UI."""
+    import uvicorn
+    from dashboard import app as dashboard_app
+    console.print(f"[bold]sweat dashboard[/bold] running at http://{host}:{port}")
+    uvicorn.run(dashboard_app, host=host, port=port, log_level="warning")
+
+
 def main() -> None:
     app()
 
