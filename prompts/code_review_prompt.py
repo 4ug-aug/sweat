@@ -22,6 +22,6 @@ For each finding also provide:
 - A brief 2-5 step pseudo-code or plain-English sketch of how to fix it (`pseudo_solution`, string, use \\n between steps).
 
 Respond ONLY with valid JSON in this exact format — no markdown fences, no extra text:
-{{"findings": [{{"title": "Short descriptive title", "category": "inconsistent_pattern|dead_code|complexity", "priority": "low|medium|high", "description": "Detailed description referencing specific files/lines and the quality principle violated", "estimated_minutes": 30, "pseudo_solution": "1. Do this\\n2. Then that"}}]}}
+{{"findings": [{{"title": "Short descriptive title", "category": "inconsistent_pattern|dead_code|complexity", "priority": "Low|Medium|High", "estimated_minutes": 30, "pseudo_solution": "1. Do this\\n2. Then that", "description": "Detailed description referencing specific files/lines and the quality principle violated"}}]}}
 
 Return exactly 3 findings, ranked by priority (highest first). If fewer than 3 issues exist, return as many as you find."""
