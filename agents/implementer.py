@@ -90,7 +90,32 @@ class ImplementerAgent(BaseAgent):
     async def run_once(self) -> None:
         projects = self.config.get("projects", [])
         assignee_gid = self.config.get("asana_assignee_gid")
+        max_open_prs = self.config.get("max_open_prs", 15)
         claims = TaskClaims.get()
+
+        # Rate-limit: skip cycle if too many agent PRs are open
+        bot_login = await self.github.get_bot_login_async()
+        repos = [p["github_repo"] for p in projects]
+        branch_prefix = projects[0].get("branch_prefix", "agent/") if projects else "agent/"
+        total_open = 0
+        for repo in repos:
+            open_prs = await self.github.get_open_prs_async(repo)
+            total_open += sum(
+                1 for pr in open_prs
+                if pr["author_login"] == bot_login
+                and pr["head_branch"].startswith(branch_prefix)
+            )
+        if total_open >= max_open_prs:
+            logging.info(
+                f"[{self.agent_id}] {total_open} open PRs (limit {max_open_prs}), pausing."
+            )
+            audit.log_event(
+                "rate_limited",
+                agent_id=self.agent_id,
+                open_prs=total_open,
+                max_open_prs=max_open_prs,
+            )
+            return
 
         all_tasks = []
         task_project_map: dict[str, dict] = {}

@@ -48,6 +48,8 @@ def _make_agent(dry_run=False):
     github.create_branch_async = AsyncMock()
     github.commit_and_push_async = AsyncMock()
     github.create_pr_async = AsyncMock()
+    github.get_bot_login_async = AsyncMock(return_value="sweat-bot")
+    github.get_open_prs_async = AsyncMock(return_value=[])
     agent = ImplementerAgent(
         agent_id="test-impl",
         config=_AGENT_CFG,
@@ -201,3 +203,35 @@ async def test_time_tracking_failure_does_not_crash_agent(mock_select, mock_run_
 
     # PR should still be created despite time tracking failure
     agent.github.create_pr_async.assert_called_once()
+
+
+async def test_rate_limited_when_too_many_open_prs():
+    """Agent skips cycle when open agent PRs >= max_open_prs."""
+    agent = _make_agent()
+    agent.github.get_open_prs_async.return_value = [
+        {"number": i, "title": f"PR {i}", "author_login": "sweat-bot", "head_branch": "agent/task-1", "base_branch": "main", "html_url": f"https://github.com/org/repo/pull/{i}"}
+        for i in range(3)
+    ]
+    agent.config = {**_AGENT_CFG, "max_open_prs": 3}
+
+    await agent.run_once()
+
+    # Should not attempt to fetch tasks
+    agent.asana.get_unassigned_tasks_async.assert_not_called()
+
+
+async def test_not_rate_limited_when_under_limit():
+    """Agent proceeds when open agent PRs < max_open_prs."""
+    agent = _make_agent()
+    agent.github.get_open_prs_async.return_value = [
+        {"number": 1, "title": "PR 1", "author_login": "sweat-bot", "head_branch": "agent/task-1", "base_branch": "main", "html_url": "https://github.com/org/repo/pull/1"}
+    ]
+
+    agent.asana.get_unassigned_tasks_async.return_value = []
+    agent.github.get_repo_summary_async.return_value = ""
+
+    with patch("agents.implementer.select_task", new_callable=AsyncMock, return_value=None):
+        await agent.run_once()
+
+    # Should proceed to fetch tasks
+    agent.asana.get_unassigned_tasks_async.assert_called_once()
