@@ -163,12 +163,11 @@ def _format_task_html(finding: dict, repo: str) -> str:
 
     return (
         f"<body>"
-        f"<p><strong>Category:</strong> {category} &nbsp;|&nbsp; "
-        f"<strong>Priority:</strong> {priority}<br/>"
-        f"<strong>Repository:</strong> {repo_escaped}</p>"
+        f"<p><strong>Category:</strong> {category} &nbsp;|&nbsp; <strong>Priority:</strong> {priority}</p>"
+        f"<p><strong>Repository:</strong> {repo_escaped}</p>"
         f"<p>{description}</p>"
         f"{solution_html}"
         f"<hr/>"
-        f"<em>Created by sweat code review agent</em>"
+        f"<p><em>Created by sweat code review agent</em></p>"
         f"</body>"
     )
