@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 from starlette.testclient import TestClient
 
 from clients.github import GitHubClient
+import dashboard.server as dashboard_mod
 
 
 def test_agents_endpoint_merges_config_and_state(monkeypatch):
@@ -16,7 +17,7 @@ def test_agents_endpoint_merges_config_and_state(monkeypatch):
             "projects": [{"github_repo": "org/repo1"}],
         }
     ])
-    monkeypatch.setattr("agent_state.read_all_states", lambda: {
+    monkeypatch.setattr("dashboard.server.read_all_states", lambda: {
         "impl-1": {
             "status": "idle",
             "loop_name": "loop-0",
@@ -24,8 +25,7 @@ def test_agents_endpoint_merges_config_and_state(monkeypatch):
             "last_error": None,
         }
     })
-    import dashboard
-    client = TestClient(dashboard.app)
+    client = TestClient(dashboard_mod.app)
     resp = client.get("/api/agents")
     assert resp.status_code == 200
     data = resp.json()
@@ -43,9 +43,8 @@ def test_agents_unknown_status_when_no_state(monkeypatch):
     monkeypatch.setattr("config.AGENTS", [
         {"id": "rev-1", "type": "reviewer", "projects": []},
     ])
-    monkeypatch.setattr("agent_state.read_all_states", lambda: {})
-    import dashboard
-    client = TestClient(dashboard.app)
+    monkeypatch.setattr("dashboard.server.read_all_states", lambda: {})
+    client = TestClient(dashboard_mod.app)
     resp = client.get("/api/agents")
     data = resp.json()
     assert data[0]["status"] == "unknown"
@@ -60,8 +59,7 @@ def test_log_endpoint_returns_entries(monkeypatch, tmp_path):
     )
     monkeypatch.setattr("config.AUDIT_LOG_PATH", str(log_file))
     monkeypatch.setattr("config.AGENTS", [])
-    import dashboard
-    client = TestClient(dashboard.app)
+    client = TestClient(dashboard_mod.app)
     resp = client.get("/api/log")
     assert resp.status_code == 200
     data = resp.json()
@@ -72,8 +70,7 @@ def test_log_endpoint_returns_entries(monkeypatch, tmp_path):
 def test_log_endpoint_empty_returns_empty_list(monkeypatch, tmp_path):
     monkeypatch.setattr("config.AUDIT_LOG_PATH", str(tmp_path / "nonexistent.jsonl"))
     monkeypatch.setattr("config.AGENTS", [])
-    import dashboard
-    client = TestClient(dashboard.app)
+    client = TestClient(dashboard_mod.app)
     resp = client.get("/api/log")
     assert resp.status_code == 200
     assert resp.json() == []
@@ -85,8 +82,7 @@ def test_log_endpoint_respects_last_param(monkeypatch, tmp_path):
     log_file.write_text("\n".join(lines) + "\n")
     monkeypatch.setattr("config.AUDIT_LOG_PATH", str(log_file))
     monkeypatch.setattr("config.AGENTS", [])
-    import dashboard
-    client = TestClient(dashboard.app)
+    client = TestClient(dashboard_mod.app)
     resp = client.get("/api/log?last=3")
     data = resp.json()
     assert len(data) == 3
@@ -98,8 +94,7 @@ def test_log_entries_reverse_chronological(monkeypatch, tmp_path):
     log_file.write_text("\n".join(lines) + "\n")
     monkeypatch.setattr("config.AUDIT_LOG_PATH", str(log_file))
     monkeypatch.setattr("config.AGENTS", [])
-    import dashboard
-    client = TestClient(dashboard.app)
+    client = TestClient(dashboard_mod.app)
     resp = client.get("/api/log")
     data = resp.json()
     # Most recent (last in file) should be first in response
@@ -131,9 +126,8 @@ def test_prs_endpoint(monkeypatch):
         {"id": 1, "user_login": "reviewer", "state": "APPROVED", "body": "LGTM", "submitted_at": None}
     ]
 
-    import dashboard
-    monkeypatch.setattr(dashboard, "_build_github_client", lambda: mock_gh)
-    client = TestClient(dashboard.app)
+    monkeypatch.setattr(dashboard_mod, "_build_github_client", lambda: mock_gh)
+    client = TestClient(dashboard_mod.app)
     resp = client.get("/api/prs")
     assert resp.status_code == 200
     data = resp.json()
@@ -147,9 +141,8 @@ def test_prs_endpoint(monkeypatch):
 
 def test_prs_endpoint_no_credentials(monkeypatch):
     monkeypatch.setattr("config.AGENTS", [])
-    import dashboard
-    monkeypatch.setattr(dashboard, "_build_github_client", lambda: None)
-    client = TestClient(dashboard.app)
+    monkeypatch.setattr(dashboard_mod, "_build_github_client", lambda: None)
+    client = TestClient(dashboard_mod.app)
     resp = client.get("/api/prs")
     assert resp.status_code == 500
     assert "error" in resp.json()
@@ -159,9 +152,8 @@ def test_index_returns_html(monkeypatch, tmp_path):
     html_file = tmp_path / "dashboard.html"
     html_file.write_text("<html><body>Hello</body></html>")
     monkeypatch.setattr("config.AGENTS", [])
-    import dashboard
-    monkeypatch.setattr(dashboard, "DASHBOARD_HTML", html_file)
-    client = TestClient(dashboard.app)
+    monkeypatch.setattr(dashboard_mod, "DASHBOARD_HTML", html_file)
+    client = TestClient(dashboard_mod.app)
     resp = client.get("/")
     assert resp.status_code == 200
     assert "text/html" in resp.headers["content-type"]

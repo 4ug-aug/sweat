@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-import agent_state
+from dashboard import state as agent_state
 
 
 def test_write_creates_file(tmp_path, monkeypatch):

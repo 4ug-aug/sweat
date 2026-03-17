@@ -26,7 +26,7 @@ import telemetry
 from agents.registry import AGENT_TYPES
 from clients.asana import AsanaClient
 from clients.github import GitHubClient
-import agent_state
+from dashboard import state as agent_state
 
 console = Console()
 app = typer.Typer(help="sweat — agentic software engineer service")

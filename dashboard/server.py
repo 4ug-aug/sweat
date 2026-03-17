@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 
 import config
-from agent_state import read_all_states
+from dashboard.state import read_all_states
 from clients.github import GitHubClient
 
 app = FastAPI(title="sweat dashboard")
