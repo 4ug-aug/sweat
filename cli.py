@@ -245,6 +245,7 @@ def _cmd_init() -> None:
             "3. Under [bold]Permissions[/bold], grant:\n"
             "     • Contents: Read & Write\n"
             "     • Pull requests: Read & Write\n"
+            "     • Commit statuses: Read\n"
             "     • Issues: Read & Write (optional, for task comments)\n"
             "4. Click [bold]Create GitHub App[/bold] — note the [bold]App ID[/bold] at the top of the settings page\n"
             "5. Scroll down and click [bold]Generate a private key[/bold] — this downloads a .pem file\n"
