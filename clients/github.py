@@ -243,6 +243,21 @@ class GitHubClient:
         except Exception as exc:
             raise GitHubError(f"Failed to get failed checks for {repo}#{pr_number}: {exc}") from exc
 
+    def get_pr_issue_comments(self, repo: str, pr_number: int) -> list[dict]:
+        try:
+            comments = self._get_gh(repo).get_repo(repo).get_issue(pr_number).get_comments()
+            return [
+                {
+                    "id": c.id,
+                    "user_login": c.user.login,
+                    "body": c.body,
+                    "created_at": c.created_at.isoformat() if c.created_at else None,
+                }
+                for c in comments
+            ]
+        except Exception as exc:
+            raise GitHubError(f"Failed to get issue comments for {repo}#{pr_number}: {exc}") from exc
+
     def get_pr_comment_threads(self, repo: str, pr_number: int) -> list[dict]:
         try:
             comments = list(self._get_gh(repo).get_repo(repo).get_pull(pr_number).get_review_comments())
@@ -354,6 +369,9 @@ class GitHubClient:
 
     async def get_failed_check_details_async(self, repo: str, pr_number: int) -> list[dict]:
         return await asyncio.to_thread(self.get_failed_check_details, repo, pr_number)
+
+    async def get_pr_issue_comments_async(self, repo: str, pr_number: int) -> list[dict]:
+        return await asyncio.to_thread(self.get_pr_issue_comments, repo, pr_number)
 
     async def get_pr_comment_threads_async(self, repo: str, pr_number: int) -> list[dict]:
         return await asyncio.to_thread(self.get_pr_comment_threads, repo, pr_number)

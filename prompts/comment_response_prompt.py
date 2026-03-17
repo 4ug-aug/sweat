@@ -8,7 +8,10 @@ def build_comment_response_prompt(
     for thread in comment_threads:
         root = thread.get("root", {})
         replies = thread.get("replies", [])
-        threads_text += f"\n**@{root.get('user_login', '')}** on `{root.get('path', '')}:{root.get('line', '')}`:\n"
+        if root.get("path"):
+            threads_text += f"\n**@{root.get('user_login', '')}** on `{root.get('path', '')}:{root.get('line', '')}`:\n"
+        else:
+            threads_text += f"\n**@{root.get('user_login', '')}**:\n"
         threads_text += f"> {root.get('body', '')}\n"
         for reply in replies:
             threads_text += f"\n  **@{reply.get('user_login', '')}**: {reply.get('body', '')}\n"

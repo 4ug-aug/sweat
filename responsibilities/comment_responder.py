@@ -60,6 +60,21 @@ class CommentResponder(BaseResponsibility):
                         "root_comment_id": root_id,
                     },
                 ))
+
+            issue_comments = snapshot.issue_comments.get(pr_number, [])
+            if issue_comments:
+                last_issue_comment = issue_comments[-1]
+                if last_issue_comment.get("user_login") != bot_login:
+                    event_key = f"{repo}#{pr_number}:issue_comment:{last_issue_comment['id']}"
+                    if not state.is_handled(event_key):
+                        items.append(ResponsibilityItem(
+                            kind="pr_issue_comment",
+                            repo=repo,
+                            pr_number=pr_number,
+                            branch=branch,
+                            event_key=event_key,
+                            context={"comments": issue_comments},
+                        ))
         return items
 
     async def execute(
@@ -83,11 +98,15 @@ class CommentResponder(BaseResponsibility):
 
         diff = await github.get_pr_diff_async(item.repo, item.pr_number)
         repo_summary = await github.get_repo_summary_async(item.repo)
-        thread = item.context["thread"]
-        root_comment_id = item.context["root_comment_id"]
+
+        if item.kind == "pr_issue_comment":
+            comments = item.context["comments"]
+            threads_for_prompt = [{"root": c, "replies": []} for c in comments]
+        else:
+            threads_for_prompt = [item.context["thread"]]
 
         prompt = build_comment_response_prompt(
-            comment_threads=[thread],
+            comment_threads=threads_for_prompt,
             diff=diff,
             repo_summary=repo_summary,
         )
@@ -107,14 +126,19 @@ class CommentResponder(BaseResponsibility):
             return
 
         summary = result.summary or ""
-        if summary.startswith("REPLY:"):
-            reply_text = summary[len("REPLY:"):].strip()
-            await github.reply_to_pr_comment_async(item.repo, item.pr_number, root_comment_id, reply_text)
+        if item.kind == "pr_issue_comment":
+            reply_text = summary[len("REPLY:"):].strip() if summary.startswith("REPLY:") else summary or "Implemented the suggested changes."
+            await github.post_pr_comment_async(item.repo, item.pr_number, reply_text)
         else:
-            await github.reply_to_pr_comment_async(
-                item.repo, item.pr_number, root_comment_id,
-                "Implemented the suggested changes."
-            )
+            root_comment_id = item.context["root_comment_id"]
+            if summary.startswith("REPLY:"):
+                reply_text = summary[len("REPLY:"):].strip()
+                await github.reply_to_pr_comment_async(item.repo, item.pr_number, root_comment_id, reply_text)
+            else:
+                await github.reply_to_pr_comment_async(
+                    item.repo, item.pr_number, root_comment_id,
+                    "Implemented the suggested changes."
+                )
 
         state.mark_handled(item.event_key)
         state.increment_revision_count(pr_key)
