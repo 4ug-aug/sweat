@@ -8,13 +8,11 @@ Usage:
     sweat init
 """
 import asyncio
-import getpass
 import json
 import logging
 import os
 import signal
 import subprocess
-import sys
 import time
 from pathlib import Path
 
@@ -219,95 +217,145 @@ def _cmd_log(last: int) -> None:
             console.print(raw_line)
 
 
-def _pick(items: list[dict], name_key: str, noun: str) -> dict:
-    """Prompt user to select one item from a numbered list; defaults to first."""
-    if len(items) == 1:
-        print(f"Using {noun}: {items[0][name_key]}")
-        return items[0]
-    print(f"\nAvailable {noun}s:")
-    for i, item in enumerate(items, 1):
-        print(f"  {i}. {item[name_key]}")
-    raw = input(f"Select {noun} [1]: ").strip()
-    try:
-        idx = int(raw) - 1 if raw else 0
-    except ValueError:
-        idx = 0
-    return items[max(0, min(idx, len(items) - 1))]
-
-
 def _cmd_init() -> None:
     """Interactive setup: validate credentials, discover config, write files."""
-    print("sweat init — interactive setup\n")
+    console.print(Panel("[bold]sweat init — interactive setup[/bold]"))
 
-    asana_token = getpass.getpass("Asana personal access token: ")
+    # ── Step 1 / 4 — Asana ──────────────────────────────────────────────
+    console.print(Panel("[bold]Step 1 / 4 — Asana[/bold]"))
+    asana_token = typer.prompt("Asana personal access token", hide_input=True)
+    asana_client = AsanaClient(asana_token)
+    with console.status("Validating...") as status:
+        try:
+            me = asana_client.get_current_user()
+            asana_assignee_gid = me["gid"]
+        except Exception:
+            status.stop()
+            console.print("[red]  ✗ Invalid token — check it and try again.[/red]")
+            raise typer.Exit(1)
+    status.stop()
+    console.print(f"[green]  ✓ Authenticated as {me['name']}[/green]")
 
-    auth_choice = input("GitHub auth method [pat/app, default: pat]: ").strip().lower() or "pat"
-    while auth_choice not in ("pat", "app"):
-        auth_choice = input("Please enter 'pat' or 'app': ").strip().lower() or "pat"
-
-    print("\nValidating tokens...")
-
-    try:
-        asana_client = AsanaClient(asana_token)
-        me = asana_client.get_current_user()
-        asana_assignee_gid = me["gid"]
-        print(f"  Asana:  authenticated as {me['name']}")
-    except Exception:
-        print("  Asana:  invalid token — check it and try again.")
-        sys.exit(1)
+    # ── Step 2 / 4 — GitHub ─────────────────────────────────────────────
+    console.print(Panel("[bold]Step 2 / 4 — GitHub[/bold]"))
+    while True:
+        auth_choice = typer.prompt("Auth method [pat/app]")
+        if auth_choice in ("pat", "app"):
+            break
+        console.print("[red]  ✗ Please enter 'pat' or 'app'.[/red]")
 
     if auth_choice == "pat":
-        github_token = getpass.getpass("GitHub personal access token: ")
-        try:
-            github_client = GitHubClient(token=github_token)
-            gh_login = github_client.get_bot_login()
-            print(f"  GitHub: authenticated as {gh_login}")
-        except Exception:
-            print("  GitHub: invalid token — check it and try again.")
-            sys.exit(1)
+        github_token = typer.prompt("GitHub personal access token", hide_input=True)
+        with console.status("Validating...") as status:
+            try:
+                gh_client = GitHubClient(token=github_token)
+                gh_login = gh_client.get_bot_login()
+            except Exception:
+                status.stop()
+                console.print("[red]  ✗ Invalid token — check it and try again.[/red]")
+                raise typer.Exit(1)
+        status.stop()
+        console.print(f"[green]  ✓ Authenticated as {gh_login}[/green]")
         github_env_lines = f"GITHUB_TOKEN={github_token}\n"
     else:
-        github_app_id = input("GitHub App ID: ").strip()
-        print("Paste private key PEM (paste all lines, end with a blank line after the END marker):")
-        lines = []
+        github_app_id = typer.prompt("GitHub App ID")
+        console.print("Paste private key PEM (paste all lines, end with a blank line after the END marker):")
+        lines: list[str] = []
         while True:
             line = input()
             if line == "" and lines and "END" in lines[-1]:
                 break
             lines.append(line)
         github_private_key = "\n".join(lines)
-        try:
-            github_client = GitHubClient(app_id=github_app_id, private_key=github_private_key)
-            gh_login = github_client.get_bot_login()
-            print(f"  GitHub: authenticated as app '{gh_login}'")
-        except Exception:
-            print("  GitHub: invalid App ID or private key — check them and try again.")
-            sys.exit(1)
+        with console.status("Validating...") as status:
+            try:
+                gh_client = GitHubClient(app_id=github_app_id, private_key=github_private_key)
+                gh_login = gh_client.get_bot_login()
+            except Exception:
+                status.stop()
+                console.print("[red]  ✗ Invalid App ID or private key — check them and try again.[/red]")
+                raise typer.Exit(1)
+        status.stop()
+        console.print(f"[green]  ✓ Authenticated as app '{gh_login}'[/green]")
         escaped_key = github_private_key.replace("\n", "\\n")
         github_env_lines = f"GITHUB_APP_ID={github_app_id}\nGITHUB_APP_PRIVATE_KEY={escaped_key}\n"
 
-    try:
-        workspaces = asana_client.get_workspaces()
-    except Exception:
-        print("Failed to fetch Asana workspaces.")
-        sys.exit(1)
-    if not workspaces:
-        print("No Asana workspaces found for this token.")
-        sys.exit(1)
-    workspace = _pick(workspaces, "name", "workspace")
+    # ── Step 3 / 4 — Asana Project ───────────────────────────────────────
+    console.print(Panel("[bold]Step 3 / 4 — Asana Project[/bold]"))
+    with console.status("Fetching workspaces...") as status:
+        try:
+            workspaces = asana_client.get_workspaces()
+        except Exception:
+            status.stop()
+            console.print("[red]  ✗ Failed to fetch Asana workspaces.[/red]")
+            raise typer.Exit(1)
+    status.stop()
 
-    try:
-        projects = asana_client.get_projects(workspace["gid"])
-    except Exception:
-        print(f"Failed to fetch projects for workspace '{workspace['name']}'.")
-        sys.exit(1)
+    if not workspaces:
+        console.print("[red]  ✗ No Asana workspaces found for this token.[/red]")
+        raise typer.Exit(1)
+
+    if len(workspaces) == 1:
+        workspace = workspaces[0]
+        console.print(f"  Using workspace: {workspace['name']}")
+    else:
+        table = Table("#", "Workspace", box=None, show_header=True, header_style="bold")
+        for i, ws in enumerate(workspaces, 1):
+            table.add_row(str(i), ws["name"])
+        console.print(table)
+        while True:
+            raw = typer.prompt("Select workspace", default="1")
+            try:
+                idx = int(raw) - 1
+                if 0 <= idx < len(workspaces):
+                    workspace = workspaces[idx]
+                    break
+            except ValueError:
+                pass
+            console.print(f"[red]  ✗ Please enter a number between 1 and {len(workspaces)}.[/red]")
+
+    with console.status("Fetching projects...") as status:
+        try:
+            projects = asana_client.get_projects(workspace["gid"])
+        except Exception:
+            status.stop()
+            console.print(f"[red]  ✗ Failed to fetch projects for workspace '{workspace['name']}'.[/red]")
+            raise typer.Exit(1)
+    status.stop()
+
     if not projects:
-        print(f"No projects found in workspace '{workspace['name']}'.")
-        sys.exit(1)
-    project = _pick(projects, "name", "project")
+        console.print(f"[red]  ✗ No projects found in workspace '{workspace['name']}'.[/red]")
+        raise typer.Exit(1)
+
+    if len(projects) == 1:
+        project = projects[0]
+        console.print(f"  Using project: {project['name']}")
+    else:
+        table = Table("#", "Project", box=None, show_header=True, header_style="bold")
+        for i, p in enumerate(projects, 1):
+            table.add_row(str(i), p["name"])
+        console.print(table)
+        while True:
+            raw = typer.prompt("Select project", default="1")
+            try:
+                idx = int(raw) - 1
+                if 0 <= idx < len(projects):
+                    project = projects[idx]
+                    break
+            except ValueError:
+                pass
+            console.print(f"[red]  ✗ Please enter a number between 1 and {len(projects)}.[/red]")
+
     asana_project_id = project["gid"]
 
-    github_repo = input("\nGitHub repo (owner/name): ").strip()
+    # ── Step 4 / 4 — GitHub Repository ──────────────────────────────────
+    console.print(Panel("[bold]Step 4 / 4 — GitHub Repository[/bold]"))
+    while True:
+        github_repo = typer.prompt("GitHub repo (owner/name)")
+        parts = github_repo.split("/")
+        if len(parts) == 2 and parts[0].strip() and parts[1].strip():
+            break
+        console.print("[red]  ✗ Repo must be in owner/name format (e.g. myorg/myrepo).[/red]")
 
     cwd = Path.cwd()
 
@@ -319,9 +367,9 @@ def _cmd_init() -> None:
             f"{github_env_lines}"
             f"ASANA_ASSIGNEE_GID={asana_assignee_gid}\n"
         )
-        print(f"\nWrote {env_path}")
+        env_msg = f"[green]  ✓ Wrote {env_path}[/green]"
     else:
-        print(f"\nSkipped {env_path} (already exists)")
+        env_msg = f"[yellow]  → Skipped {env_path} (already exists)[/yellow]"
 
     # Write sweat.config.json
     starter_config = {
@@ -359,20 +407,25 @@ def _cmd_init() -> None:
     config_path = cwd / "sweat.config.json"
     if not config_path.exists():
         config_path.write_text(json.dumps(starter_config, indent=2) + "\n")
-        print(f"Wrote {config_path}")
+        config_msg = f"[green]  ✓ Wrote {config_path}[/green]"
     else:
-        print(f"Skipped {config_path} (already exists)")
+        config_msg = f"[yellow]  → Skipped {config_path} (already exists)[/yellow]"
 
+    # Write docker-compose.yml
     compose_path = cwd / "docker-compose.yml"
     if not compose_path.exists():
         compose_path.write_text(_COMPOSE_TEMPLATE)
-        print(f"Wrote {compose_path}")
+        compose_msg = f"[green]  ✓ Wrote {compose_path}[/green]"
     else:
-        print(f"Skipped {compose_path} (already exists)")
+        compose_msg = f"[yellow]  → Skipped {compose_path} (already exists)[/yellow]"
 
-    print("\nNext steps:")
-    print("  1. Review and customize sweat.config.json (field_names, field_filters, etc.)")
-    print("  2. Run: sweat up")
+    console.print(Panel("[bold]Setup complete[/bold]"))
+    console.print(env_msg)
+    console.print(config_msg)
+    console.print(compose_msg)
+    console.print("\nNext steps:")
+    console.print("  1. Review and customize sweat.config.json (field_names, field_filters, etc.)")
+    console.print("  2. Run: sweat up")
 
 
 def _cmd_up(detach: bool) -> None:
