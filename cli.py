@@ -238,11 +238,35 @@ def _cmd_init() -> None:
 
     # ── Step 2 / 4 — GitHub ─────────────────────────────────────────────
     console.print(Panel("[bold]Step 2 / 4 — GitHub[/bold]"))
+    auth_table = Table("#", "Method", "Description", box=None, show_header=True, header_style="bold")
+    auth_table.add_row("1", "PAT", "Personal Access Token — simple, tied to your user account")
+    auth_table.add_row("2", "App", "GitHub App — recommended for bots, fine-grained permissions")
+    console.print(auth_table)
     while True:
-        auth_choice = typer.prompt("Auth method [pat/app]")
-        if auth_choice in ("pat", "app"):
+        raw = typer.prompt("Select auth method", default="1")
+        if raw == "1":
+            auth_choice = "pat"
             break
-        console.print("[red]  ✗ Please enter 'pat' or 'app'.[/red]")
+        if raw == "2":
+            auth_choice = "app"
+            break
+        console.print("[red]  ✗ Please enter 1 or 2.[/red]")
+
+    if auth_choice == "app":
+        console.print(Panel(
+            "[bold]GitHub App setup guide[/bold]\n\n"
+            "1. Go to [bold]github.com/settings/apps/new[/bold] (or your org's Settings → Developer settings → GitHub Apps)\n"
+            "2. Give the app a name and set Homepage URL to anything\n"
+            "3. Under [bold]Permissions[/bold], grant:\n"
+            "     • Contents: Read & Write\n"
+            "     • Pull requests: Read & Write\n"
+            "     • Issues: Read & Write (optional, for task comments)\n"
+            "4. Click [bold]Create GitHub App[/bold] — note the [bold]App ID[/bold] at the top of the settings page\n"
+            "5. Scroll down and click [bold]Generate a private key[/bold] — this downloads a .pem file\n"
+            "6. Install the app on your repo: App settings → [bold]Install App[/bold] → select the repo",
+            title="ℹ How to create a GitHub App",
+            border_style="blue",
+        ))
 
     if auth_choice == "pat":
         github_token = typer.prompt("GitHub personal access token", hide_input=True)
