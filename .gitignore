@@ -19,6 +19,7 @@ __pycache__/
 audit.jsonl
 sweat.config.json
 knowledge/
+*.pem
 
 
 # Project files, i.e. `.project`, `.actionScriptProperties` and `.flexProperties`
