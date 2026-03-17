@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sweat Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f5f5;
+      color: #1a1a1a;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    header h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #1a6fef;
+      letter-spacing: -0.01em;
+    }
+
+    #last-updated {
+      font-size: 0.8rem;
+      color: #888;
+    }
+
+    main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 28px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 36px;
+    }
+
+    section h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #444;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 14px;
+    }
+
+    /* ── Error banner ── */
+    .error-banner {
+      background: #fff2f2;
+      border: 1px solid #fcc;
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: #c00;
+      font-size: 0.875rem;
+    }
+
+    /* ── Agent cards ── */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 18px 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .agent-id {
+      font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #222;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 12px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .badge-implementer { background: #dbeafe; color: #1d4ed8; }
+    .badge-reviewer    { background: #ede9fe; color: #7c3aed; }
+    .badge-default     { background: #f0f0f0; color: #555; }
+
+    .card-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 0.82rem;
+      color: #555;
+    }
+
+    .card-label {
+      min-width: 70px;
+      font-weight: 500;
+      color: #888;
+      flex-shrink: 0;
+    }
+
+    .card-value {
+      color: #333;
+    }
+
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .dot-idle    { background: #22c55e; }
+    .dot-running { background: #f59e0b; }
+    .dot-error   { background: #ef4444; }
+    .dot-unknown { background: #9ca3af; }
+
+    .dot-success { background: #22c55e; }
+    .dot-pending { background: #f59e0b; }
+    .dot-failure { background: #ef4444; }
+    .dot-neutral { background: #9ca3af; }
+
+    .repos-list {
+      font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 0.78rem;
+      color: #444;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .repo-chip {
+      background: #f0f4ff;
+      border: 1px solid #c7d7fa;
+      border-radius: 4px;
+      padding: 1px 6px;
+    }
+
+    .last-error {
+      color: #dc2626;
+      font-size: 0.78rem;
+      background: #fff2f2;
+      border-radius: 5px;
+      padding: 6px 8px;
+      border: 1px solid #fcc;
+      word-break: break-word;
+    }
+
+    .empty-msg {
+      color: #aaa;
+      font-size: 0.875rem;
+      padding: 18px 0;
+    }
+
+    /* ── PR Table ── */
+    .table-wrapper {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    thead tr {
+      background: #fafafa;
+      border-bottom: 1px solid #e8e8e8;
+    }
+
+    th {
+      padding: 11px 16px;
+      text-align: left;
+      font-weight: 600;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-size: 0.72rem;
+      white-space: nowrap;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid #f0f0f0;
+      transition: background 0.12s;
+    }
+
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #fafbff; }
+
+    td {
+      padding: 11px 16px;
+      vertical-align: middle;
+      color: #333;
+    }
+
+    td.mono {
+      font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 0.78rem;
+      color: #555;
+    }
+
+    td a {
+      color: #1a6fef;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    td a:hover { text-decoration: underline; }
+
+    .check-cell {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ── Audit feed ── */
+    .audit-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .audit-item {
+      background: #fff;
+      border-radius: 8px;
+      padding: 12px 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 8px;
+      font-size: 0.83rem;
+    }
+
+    .audit-ts {
+      color: #999;
+      font-size: 0.77rem;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    .event-badge {
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      flex-shrink: 0;
+    }
+
+    /* event type colors */
+    .ev-task_selected    { background: #dbeafe; color: #1d4ed8; }
+    .ev-pr_opened        { background: #d1fae5; color: #065f46; }
+    .ev-pr_reviewed      { background: #ede9fe; color: #6d28d9; }
+    .ev-error            { background: #fee2e2; color: #b91c1c; }
+    .ev-default          { background: #f0f0f0; color: #555; }
+
+    .audit-agent {
+      font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 0.78rem;
+      color: #555;
+    }
+
+    .audit-detail {
+      color: #444;
+      flex: 1;
+      min-width: 0;
+      word-break: break-word;
+    }
+
+    .audit-detail a {
+      color: #1a6fef;
+      text-decoration: none;
+    }
+
+    .audit-detail a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Sweat Dashboard</h1>
+    <span id="last-updated">Loading…</span>
+  </header>
+
+  <main>
+    <!-- Agent Status -->
+    <section id="section-agents">
+      <h2>Agent Status</h2>
+      <div id="agents-container"><p class="empty-msg">Loading agents…</p></div>
+    </section>
+
+    <!-- PR Table -->
+    <section id="section-prs">
+      <h2>Open Pull Requests</h2>
+      <div id="prs-container"><p class="empty-msg">Loading pull requests…</p></div>
+    </section>
+
+    <!-- Audit Feed -->
+    <section id="section-log">
+      <h2>Audit Feed</h2>
+      <div id="log-container"><p class="empty-msg">Loading audit log…</p></div>
+    </section>
+  </main>
+
+  <script>
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    function relativeTime(isoString) {
+      if (!isoString) return 'never';
+      const then = new Date(isoString);
+      if (isNaN(then)) return isoString;
+      const diffMs = Date.now() - then.getTime();
+      const abs = Math.abs(diffMs);
+      if (abs < 60_000)       return 'just now';
+      if (abs < 3_600_000)    return `${Math.floor(abs / 60_000)} minute${Math.floor(abs / 60_000) !== 1 ? 's' : ''} ago`;
+      if (abs < 86_400_000)   return `${Math.floor(abs / 3_600_000)} hour${Math.floor(abs / 3_600_000) !== 1 ? 's' : ''} ago`;
+      return `${Math.floor(abs / 86_400_000)} day${Math.floor(abs / 86_400_000) !== 1 ? 's' : ''} ago`;
+    }
+
+    function formatInterval(seconds) {
+      if (!seconds && seconds !== 0) return '—';
+      if (seconds < 60)   return `every ${seconds}s`;
+      if (seconds < 3600) return `every ${Math.round(seconds / 60)}m`;
+      const h = Math.round(seconds / 3600);
+      return `every ${h}h`;
+    }
+
+    function statusDotClass(status) {
+      const map = { idle: 'dot-idle', running: 'dot-running', error: 'dot-error' };
+      return map[status] || 'dot-unknown';
+    }
+
+    function checkDotClass(status) {
+      const map = { success: 'dot-success', pending: 'dot-pending', failure: 'dot-failure' };
+      return map[status] || 'dot-neutral';
+    }
+
+    function agentBadgeClass(type) {
+      if (type === 'implementer') return 'badge-implementer';
+      if (type === 'reviewer')    return 'badge-reviewer';
+      return 'badge-default';
+    }
+
+    function eventBadgeClass(event) {
+      const key = (event || '').toLowerCase().replace(/[^a-z_]/g, '');
+      const known = ['task_selected', 'pr_opened', 'pr_reviewed', 'error'];
+      return known.includes(key) ? `ev-${key}` : 'ev-default';
+    }
+
+    function esc(str) {
+      const d = document.createElement('div');
+      d.textContent = String(str);
+      return d.innerHTML;
+    }
+
+    function formatTimestamp(ts) {
+      if (!ts) return '—';
+      const d = new Date(ts);
+      if (isNaN(d)) return ts;
+      return d.toLocaleString();
+    }
+
+    // ── Renderers ────────────────────────────────────────────────────────────
+
+    function renderAgents(agents) {
+      const container = document.getElementById('agents-container');
+      if (!agents || agents.length === 0) {
+        container.innerHTML = '<p class="empty-msg">No agents found.</p>';
+        return;
+      }
+      const grid = document.createElement('div');
+      grid.className = 'cards-grid';
+      for (const agent of agents) {
+        const repos = Array.isArray(agent.repos) ? agent.repos : [];
+        const repoChips = repos.length
+          ? repos.map(r => `<span class="repo-chip">${esc(r)}</span>`).join('')
+          : '<span style="color:#aaa">none</span>';
+
+        const errorHtml = agent.last_error
+          ? `<div class="last-error">${esc(agent.last_error)}</div>`
+          : '';
+
+        grid.innerHTML += `
+          <div class="card">
+            <div class="card-header">
+              <span class="agent-id">${esc(agent.id || '—')}</span>
+              <span class="badge ${agentBadgeClass(agent.type)}">${esc(agent.type || 'unknown')}</span>
+            </div>
+            <div class="card-row">
+              <span class="card-label">Status</span>
+              <span class="status-indicator">
+                <span class="dot ${statusDotClass(agent.status)}"></span>
+                <span class="card-value">${esc(agent.status || 'unknown')}</span>
+              </span>
+            </div>
+            <div class="card-row">
+              <span class="card-label">Last run</span>
+              <span class="card-value">${relativeTime(agent.last_run)}</span>
+            </div>
+            <div class="card-row">
+              <span class="card-label">Interval</span>
+              <span class="card-value">${formatInterval(agent.interval)}</span>
+            </div>
+            <div class="card-row">
+              <span class="card-label">Repos</span>
+              <span class="repos-list">${repoChips}</span>
+            </div>
+            ${errorHtml}
+          </div>`;
+      }
+      container.innerHTML = '';
+      container.appendChild(grid);
+    }
+
+    function renderPRs(prs) {
+      const container = document.getElementById('prs-container');
+      if (!prs || prs.length === 0) {
+        container.innerHTML = '<p class="empty-msg">No open pull requests.</p>';
+        return;
+      }
+      let rows = '';
+      for (const pr of prs) {
+        const reviews = Array.isArray(pr.reviews) ? pr.reviews.length : 0;
+        const prNum = pr.html_url
+          ? `<a href="${esc(pr.html_url)}" target="_blank" rel="noopener noreferrer">#${esc(pr.number)}</a>`
+          : `#${esc(pr.number)}`;
+
+        rows += `
+          <tr>
+            <td class="mono">${esc(pr.repo || '—')}</td>
+            <td>${prNum}</td>
+            <td>${esc(pr.title || '—')}</td>
+            <td>${esc(pr.author_login || '—')}</td>
+            <td>
+              <span class="check-cell">
+                <span class="dot ${checkDotClass(pr.check_status)}"></span>
+                ${esc(pr.check_status || 'unknown')}
+              </span>
+            </td>
+            <td>${reviews}</td>
+            <td>${relativeTime(pr.created_at)}</td>
+          </tr>`;
+      }
+      container.innerHTML = `
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Repo</th>
+                <th>PR #</th>
+                <th>Title</th>
+                <th>Author</th>
+                <th>Checks</th>
+                <th>Reviews</th>
+                <th>Age</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    }
+
+    function auditDetail(entry) {
+      const parts = [];
+      if (entry.task_name) parts.push(`Task: <strong>${esc(entry.task_name)}</strong>`);
+      if (entry.repo)      parts.push(`Repo: <span style="font-family:monospace;font-size:0.8em">${esc(entry.repo)}</span>`);
+      if (entry.pr_url)    parts.push(`PR: <a href="${esc(entry.pr_url)}" target="_blank" rel="noopener noreferrer">${esc(entry.pr_url)}</a>`);
+      if (entry.error)     parts.push(`<span style="color:#dc2626">Error: ${esc(entry.error)}</span>`);
+
+      // Show any other fields not already shown
+      const skip = new Set(['timestamp', 'event', 'agent_id', 'task_name', 'repo', 'pr_url', 'error']);
+      for (const [k, v] of Object.entries(entry)) {
+        if (!skip.has(k) && v !== null && v !== undefined) {
+          parts.push(`${esc(k)}: ${esc(String(v))}`);
+        }
+      }
+      return parts.join(' &nbsp;·&nbsp; ') || '—';
+    }
+
+    function renderLog(entries) {
+      const container = document.getElementById('log-container');
+      if (!entries || entries.length === 0) {
+        container.innerHTML = '<p class="empty-msg">No audit log entries.</p>';
+        return;
+      }
+      // reverse-chronological
+      const sorted = [...entries].sort((a, b) => {
+        const ta = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const tb = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        return tb - ta;
+      });
+
+      const list = document.createElement('div');
+      list.className = 'audit-list';
+      for (const entry of sorted) {
+        const item = document.createElement('div');
+        item.className = 'audit-item';
+        item.innerHTML = `
+          <span class="audit-ts">${formatTimestamp(entry.timestamp)}</span>
+          <span class="event-badge ${eventBadgeClass(entry.event)}">${esc(entry.event || 'unknown')}</span>
+          <span class="audit-agent">${esc(entry.agent_id || '—')}</span>
+          <span class="audit-detail">${auditDetail(entry)}</span>`;
+        list.appendChild(item);
+      }
+      container.innerHTML = '';
+      container.appendChild(list);
+    }
+
+    // ── Data fetching ────────────────────────────────────────────────────────
+
+    async function fetchJSON(url) {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      return res.json();
+    }
+
+    function showError(containerId, message) {
+      document.getElementById(containerId).innerHTML =
+        `<div class="error-banner">Failed to load data: ${esc(message)}</div>`;
+    }
+
+    async function refresh() {
+      const [agentsResult, prsResult, logResult] = await Promise.allSettled([
+        fetchJSON('/api/agents'),
+        fetchJSON('/api/prs'),
+        fetchJSON('/api/log'),
+      ]);
+
+      if (agentsResult.status === 'fulfilled') {
+        renderAgents(agentsResult.value);
+      } else {
+        showError('agents-container', agentsResult.reason.message);
+      }
+
+      if (prsResult.status === 'fulfilled') {
+        renderPRs(prsResult.value);
+      } else {
+        showError('prs-container', prsResult.reason.message);
+      }
+
+      if (logResult.status === 'fulfilled') {
+        renderLog(logResult.value);
+      } else {
+        showError('log-container', logResult.reason.message);
+      }
+
+      document.getElementById('last-updated').textContent =
+        `Last updated: ${new Date().toLocaleTimeString()}`;
+    }
+
+    // ── Init ─────────────────────────────────────────────────────────────────
+
+    refresh();
+    setInterval(refresh, 30_000);
+  </script>
+</body>
+</html>
