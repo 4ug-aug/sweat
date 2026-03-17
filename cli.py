@@ -212,9 +212,9 @@ def _cmd_log(last: int) -> None:
             continue
         try:
             record = json.loads(raw_line)
-            console.print(_format_log_entry(record))
+            console.print(_format_log_entry(record), markup=False)
         except json.JSONDecodeError:
-            console.print(raw_line)
+            console.print(raw_line, markup=False)
 
 
 def _cmd_init() -> None:
