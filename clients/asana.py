@@ -181,9 +181,22 @@ class AsanaClient:
         except Exception as exc:
             raise AsanaError(f"Failed to add time tracking entry to task {task_id}: {exc}") from exc
 
-    def create_task(self, project_id: str, name: str, notes: str) -> dict:
+    def create_task(
+        self,
+        project_id: str,
+        name: str,
+        notes: str = "",
+        html_notes: str = "",
+        estimated_minutes: int | None = None,
+    ) -> dict:
         try:
-            body = {"name": name, "projects": [project_id], "notes": notes}
+            body = {"name": name, "projects": [project_id]}
+            if html_notes:
+                body["html_notes"] = html_notes
+            else:
+                body["notes"] = notes
+            if estimated_minutes is not None:
+                body["estimated_duration_minutes"] = estimated_minutes
             result = self._client.tasks.create_task(body)
             return result
         except Exception as exc:
@@ -218,8 +231,22 @@ class AsanaClient:
     async def add_time_tracking_entry_async(self, task_id: str, duration_minutes: int, entered_on: str) -> None:
         await asyncio.to_thread(self.add_time_tracking_entry, task_id, duration_minutes, entered_on)
 
-    async def create_task_async(self, project_id: str, name: str, notes: str) -> dict:
-        return await asyncio.to_thread(self.create_task, project_id, name, notes)
+    async def create_task_async(
+        self,
+        project_id: str,
+        name: str,
+        notes: str = "",
+        html_notes: str = "",
+        estimated_minutes: int | None = None,
+    ) -> dict:
+        return await asyncio.to_thread(
+            self.create_task,
+            project_id,
+            name,
+            notes=notes,
+            html_notes=html_notes,
+            estimated_minutes=estimated_minutes,
+        )
 
     async def get_tasks_async(self, project_id: str) -> list[dict]:
         return await asyncio.to_thread(self.get_tasks, project_id)

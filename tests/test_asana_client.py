@@ -126,6 +126,50 @@ def test_create_task_calls_api(mock_client_class):
 
 
 @patch("clients.asana._Client")
+def test_create_task_with_html_notes(mock_client_class):
+    mock_client = MagicMock()
+    mock_client_class.return_value = mock_client
+    mock_client.tasks.create_task.return_value = {"gid": "999", "name": "Task"}
+
+    client = AsanaClient("test-token")
+    client.create_task("PROJECT_GID", "Task", html_notes="<body>content</body>")
+
+    call_body = mock_client.tasks.create_task.call_args[0][0]
+    assert call_body["html_notes"] == "<body>content</body>"
+    assert "notes" not in call_body
+
+
+@patch("clients.asana._Client")
+def test_create_task_with_estimated_minutes(mock_client_class):
+    mock_client = MagicMock()
+    mock_client_class.return_value = mock_client
+    mock_client.tasks.create_task.return_value = {"gid": "999", "name": "Task"}
+
+    client = AsanaClient("test-token")
+    client.create_task("PROJECT_GID", "Task", estimated_minutes=60)
+
+    call_body = mock_client.tasks.create_task.call_args[0][0]
+    assert call_body["estimated_duration_minutes"] == 60
+
+
+@patch("clients.asana._Client")
+async def test_create_task_async_forwards_html_notes_and_estimated_minutes(mock_client_class):
+    mock_client = MagicMock()
+    mock_client_class.return_value = mock_client
+    mock_client.tasks.create_task.return_value = {"gid": "999", "name": "Task"}
+
+    client = AsanaClient("test-token")
+    await client.create_task_async(
+        "PROJECT_GID", "Task", html_notes="<body>html</body>", estimated_minutes=45
+    )
+
+    call_body = mock_client.tasks.create_task.call_args[0][0]
+    assert call_body["html_notes"] == "<body>html</body>"
+    assert "notes" not in call_body
+    assert call_body["estimated_duration_minutes"] == 45
+
+
+@patch("clients.asana._Client")
 def test_get_tasks_returns_incomplete(mock_client_class):
     mock_client = MagicMock()
     mock_client_class.return_value = mock_client
