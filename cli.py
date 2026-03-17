@@ -26,6 +26,7 @@ import telemetry
 from agents.registry import AGENT_TYPES
 from clients.asana import AsanaClient
 from clients.github import GitHubClient
+import agent_state
 
 console = Console()
 app = typer.Typer(help="sweat — agentic software engineer service")
@@ -97,18 +98,21 @@ async def _agent_loop(agent, loop_name: str, interval: int, initial_delay: float
         ) as span:
             try:
                 logging.info(f"Agent {agent.agent_id!r} [{loop_name}]: running")
+                agent_state.write_agent_state(agent.agent_id, "running", loop_name)
                 if telemetry.agent_runs:
                     telemetry.agent_runs.add(1, {"agent.id": agent.agent_id})
                 start = time.monotonic()
                 await agent.run_loop(loop_name)
                 if telemetry.agent_run_duration:
                     telemetry.agent_run_duration.record(time.monotonic() - start, {"agent.id": agent.agent_id})
+                agent_state.write_agent_state(agent.agent_id, "idle", loop_name)
             except Exception as exc:
                 span.set_status(telemetry.trace.StatusCode.ERROR, str(exc))
                 span.record_exception(exc)
                 if telemetry.agent_errors:
                     telemetry.agent_errors.add(1, {"agent.id": agent.agent_id})
                 logging.error(f"Agent {agent.agent_id!r}: error — {exc}")
+                agent_state.write_agent_state(agent.agent_id, "error", loop_name, last_error=str(exc))
         await asyncio.sleep(interval)
 
 
