@@ -1,4 +1,5 @@
 import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -50,23 +51,31 @@ def get_prs():
             if "github_repo" in project:
                 repos.add(project["github_repo"])
 
-    result = []
+    all_prs: list[tuple[str, dict]] = []
     for repo in sorted(repos):
         try:
             prs = github.get_open_prs(repo)
+            all_prs.extend((repo, pr) for pr in prs)
         except Exception:
             continue
-        for pr in prs:
-            try:
-                pr["check_status"] = github.get_pr_check_status(repo, pr["number"])
-            except Exception:
-                pr["check_status"] = "unknown"
-            try:
-                pr["reviews"] = github.get_pr_reviews(repo, pr["number"])
-            except Exception:
-                pr["reviews"] = []
-            pr["repo"] = repo
-            result.append(pr)
+
+    def enrich(repo: str, pr: dict) -> dict:
+        try:
+            pr["check_status"] = github.get_pr_check_status(repo, pr["number"])
+        except Exception:
+            pr["check_status"] = "unknown"
+        try:
+            pr["reviews"] = github.get_pr_reviews(repo, pr["number"])
+        except Exception:
+            pr["reviews"] = []
+        pr["repo"] = repo
+        return pr
+
+    result = []
+    with ThreadPoolExecutor() as executor:
+        futures = {executor.submit(enrich, repo, pr): pr for repo, pr in all_prs}
+        for future in as_completed(futures):
+            result.append(future.result())
     return result
 
 
