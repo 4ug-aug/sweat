@@ -204,19 +204,19 @@ def _format_log_entry(record: dict) -> str:
 def _cmd_log(last: int) -> None:
     path = config.AUDIT_LOG_PATH
     if not os.path.exists(path):
-        print(f"No audit log found at {path}")
+        console.print(f"No audit log found at {path}")
         return
     with open(path) as f:
         lines = f.readlines()
-    for line in lines[-last:]:
-        line = line.strip()
-        if not line:
+    for raw_line in lines[-last:]:
+        raw_line = raw_line.strip()
+        if not raw_line:
             continue
         try:
-            record = json.loads(line)
-            print(_format_log_entry(record))
+            record = json.loads(raw_line)
+            console.print(_format_log_entry(record))
         except json.JSONDecodeError:
-            print(line)
+            console.print(raw_line)
 
 
 def _pick(items: list[dict], name_key: str, noun: str) -> dict:
@@ -377,16 +377,16 @@ def _cmd_init() -> None:
 
 def _cmd_up(detach: bool) -> None:
     if not (Path.cwd() / "docker-compose.yml").exists():
-        print("No docker-compose.yml found. Run 'sweat init' first.")
-        sys.exit(1)
+        console.print("[red]No docker-compose.yml found. Run 'sweat init' first.[/red]")
+        raise typer.Exit(1)
     cmd = ["docker", "compose", "up", "--build"]
     if detach:
         cmd.append("-d")
     try:
         subprocess.run(cmd, check=True)
     except subprocess.CalledProcessError as e:
-        print(f"Docker Compose failed (exit code {e.returncode})")
-        sys.exit(e.returncode)
+        console.print(f"[red]Docker Compose failed (exit code {e.returncode})[/red]")
+        raise typer.Exit(code=e.returncode)
 
 
 @app.command()
