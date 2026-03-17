@@ -20,6 +20,7 @@ audit.jsonl
 sweat.config.json
 knowledge/
 *.pem
+.worktrees/
 
 
 # Project files, i.e. `.project`, `.actionScriptProperties` and `.flexProperties`
