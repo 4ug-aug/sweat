@@ -420,6 +420,17 @@ def _cmd_init() -> None:
                     }
                 ],
             },
+            {
+                "id": "code-reviewer",
+                "type": "code_reviewer",
+                "interval": 86400,
+                "projects": [
+                    {
+                        "github_repo": github_repo,
+                        "branch_prefix": "agent/",
+                    }
+                ],
+            },
         ]
     }
     config_path = cwd / "sweat.config.json"
