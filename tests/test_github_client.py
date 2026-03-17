@@ -1,5 +1,6 @@
 import base64
 import os
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -255,3 +256,128 @@ def test_get_latest_commit_timestamp(mock_github_class):
 
     assert result == commit_date.isoformat()
     mock_pr.head.repo.get_commit.assert_called_once_with("deadbeef")
+
+
+# --- GitHub App mode tests ---
+
+def _make_app_client(mock_github_class, mock_integration_class):
+    """Helper: create an app-mode GitHubClient with mocked Github and GithubIntegration."""
+    mock_gh = MagicMock()
+    mock_github_class.return_value = mock_gh
+    mock_integration = MagicMock()
+    mock_integration_class.return_value = mock_integration
+    client = GitHubClient(app_id="12345", private_key="-----BEGIN RSA PRIVATE KEY-----\nfake\n-----END RSA PRIVATE KEY-----")
+    return client, mock_gh, mock_integration
+
+
+@patch("clients.github.GithubIntegration")
+@patch("clients.github.Github")
+def test_app_mode_get_bot_login_returns_slug(mock_github_class, mock_integration_class):
+    client, mock_gh, _ = _make_app_client(mock_github_class, mock_integration_class)
+    mock_gh.get_app.return_value.slug = "my-app"
+
+    login = client.get_bot_login()
+
+    assert login == "my-app"
+    mock_gh.get_app.return_value.get_user = MagicMock()  # should not be called
+    mock_gh.get_user.assert_not_called()
+
+
+@patch("clients.github.GithubIntegration")
+@patch("clients.github.Github")
+def test_app_mode_token_for_owner_cache_miss(mock_github_class, mock_integration_class):
+    client, mock_gh, mock_integration = _make_app_client(mock_github_class, mock_integration_class)
+
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+    mock_inst = MagicMock()
+    mock_inst.account.login = "myorg"
+    mock_inst.id = 99
+    mock_gh.get_app.return_value.get_installations.return_value = [mock_inst]
+    mock_access = MagicMock()
+    mock_access.token = "inst-token-abc"
+    mock_access.expires_at = expires_at
+    mock_integration.get_access_token.return_value = mock_access
+
+    token = client._token_for_owner("myorg")
+
+    assert token == "inst-token-abc"
+    mock_integration.get_access_token.assert_called_once_with(99)
+    assert client._install_cache["myorg"] == ("inst-token-abc", expires_at)
+
+
+@patch("clients.github.GithubIntegration")
+@patch("clients.github.Github")
+def test_app_mode_token_for_owner_cache_hit(mock_github_class, mock_integration_class):
+    client, mock_gh, mock_integration = _make_app_client(mock_github_class, mock_integration_class)
+
+    future_expiry = datetime.now(timezone.utc) + timedelta(hours=1)
+    client._install_cache["myorg"] = ("cached-token", future_expiry)
+
+    token = client._token_for_owner("myorg")
+
+    assert token == "cached-token"
+    mock_integration.get_access_token.assert_not_called()
+
+
+@patch("clients.github.GithubIntegration")
+@patch("clients.github.Github")
+def test_app_mode_token_for_owner_near_expiry_refreshes(mock_github_class, mock_integration_class):
+    client, mock_gh, mock_integration = _make_app_client(mock_github_class, mock_integration_class)
+
+    # Near-expired: expires in 3 minutes (< 5 min threshold)
+    near_expiry = datetime.now(timezone.utc) + timedelta(minutes=3)
+    client._install_cache["myorg"] = ("old-token", near_expiry)
+
+    new_expiry = datetime.now(timezone.utc) + timedelta(hours=1)
+    mock_inst = MagicMock()
+    mock_inst.account.login = "myorg"
+    mock_inst.id = 42
+    mock_gh.get_app.return_value.get_installations.return_value = [mock_inst]
+    mock_access = MagicMock()
+    mock_access.token = "fresh-token"
+    mock_access.expires_at = new_expiry
+    mock_integration.get_access_token.return_value = mock_access
+
+    token = client._token_for_owner("myorg")
+
+    assert token == "fresh-token"
+    mock_integration.get_access_token.assert_called_once_with(42)
+
+
+@patch("clients.github.GithubIntegration")
+@patch("clients.github.Github")
+def test_app_mode_token_for_owner_not_found_raises(mock_github_class, mock_integration_class):
+    client, mock_gh, _ = _make_app_client(mock_github_class, mock_integration_class)
+    mock_inst = MagicMock()
+    mock_inst.account.login = "otherorg"
+    mock_gh.get_app.return_value.get_installations.return_value = [mock_inst]
+
+    with pytest.raises(ValueError, match="No GitHub App installation found for owner: myorg"):
+        client._token_for_owner("myorg")
+
+
+@patch("clients.github.tempfile.mkdtemp")
+@patch("clients.github.git.Repo.clone_from")
+@patch("clients.github.GithubIntegration")
+@patch("clients.github.Github")
+def test_app_mode_clone_repo_uses_installation_token(mock_github_class, mock_integration_class, mock_clone, mock_mkdtemp):
+    mock_mkdtemp.return_value = "/tmp/sweat_apptest"
+    mock_clone.return_value = MagicMock()
+    client, mock_gh, mock_integration = _make_app_client(mock_github_class, mock_integration_class)
+
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+    mock_inst = MagicMock()
+    mock_inst.account.login = "myorg"
+    mock_inst.id = 7
+    mock_gh.get_app.return_value.get_installations.return_value = [mock_inst]
+    mock_access = MagicMock()
+    mock_access.token = "install-token-xyz"
+    mock_access.expires_at = expires_at
+    mock_integration.get_access_token.return_value = mock_access
+
+    path = client.clone_repo("myorg/myrepo")
+
+    assert path == "/tmp/sweat_apptest"
+    url = mock_clone.call_args[0][0]
+    assert "install-token-xyz" in url
+    assert "myorg/myrepo" in url

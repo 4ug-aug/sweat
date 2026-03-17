@@ -10,6 +10,8 @@ KNOWLEDGE_DIR = str(Path(__file__).resolve().parent / "knowledge")
 
 ASANA_TOKEN = os.environ.get("ASANA_TOKEN", "")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
+GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID", "")
+GITHUB_APP_PRIVATE_KEY = os.environ.get("GITHUB_APP_PRIVATE_KEY", "").replace("\\n", "\n")
 
 AUDIT_LOG_PATH = os.environ.get("AUDIT_LOG_PATH", "audit.jsonl")
 

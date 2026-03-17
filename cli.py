@@ -56,11 +56,15 @@ def _build_agents(type_filter: str | None = None):
     gets a unique id (``{base_id}-{i}``) and a staggered ``initial_delay``
     so that replicas don't all fire at the same instant.
     """
-    if not config.ASANA_TOKEN or not config.GITHUB_TOKEN:
-        logging.error("ASANA_TOKEN and GITHUB_TOKEN must be set. Run 'sweat init' to configure.")
+    if not config.ASANA_TOKEN or (not config.GITHUB_TOKEN and not (config.GITHUB_APP_ID and config.GITHUB_APP_PRIVATE_KEY)):
+        logging.error("ASANA_TOKEN and GitHub credentials (GITHUB_TOKEN or GITHUB_APP_ID+GITHUB_APP_PRIVATE_KEY) must be set. Run 'sweat init' to configure.")
         return []
 
-    github = GitHubClient(config.GITHUB_TOKEN)
+    github = GitHubClient(
+        token=config.GITHUB_TOKEN,
+        app_id=config.GITHUB_APP_ID,
+        private_key=config.GITHUB_APP_PRIVATE_KEY,
+    )
     asana = AsanaClient(config.ASANA_TOKEN)
 
     agents = []
@@ -229,7 +233,10 @@ def _cmd_init() -> None:
     print("sweat init — interactive setup\n")
 
     asana_token = getpass.getpass("Asana personal access token: ")
-    github_token = getpass.getpass("GitHub personal access token: ")
+
+    auth_choice = input("GitHub auth method [pat/app, default: pat]: ").strip().lower() or "pat"
+    while auth_choice not in ("pat", "app"):
+        auth_choice = input("Please enter 'pat' or 'app': ").strip().lower() or "pat"
 
     print("\nValidating tokens...")
 
@@ -242,13 +249,35 @@ def _cmd_init() -> None:
         print("  Asana:  invalid token — check it and try again.")
         sys.exit(1)
 
-    try:
-        github_client = GitHubClient(github_token)
-        gh_login = github_client.get_bot_login()
-        print(f"  GitHub: authenticated as {gh_login}")
-    except Exception:
-        print("  GitHub: invalid token — check it and try again.")
-        sys.exit(1)
+    if auth_choice == "pat":
+        github_token = getpass.getpass("GitHub personal access token: ")
+        try:
+            github_client = GitHubClient(token=github_token)
+            gh_login = github_client.get_bot_login()
+            print(f"  GitHub: authenticated as {gh_login}")
+        except Exception:
+            print("  GitHub: invalid token — check it and try again.")
+            sys.exit(1)
+        github_env_lines = f"GITHUB_TOKEN={github_token}\n"
+    else:
+        github_app_id = input("GitHub App ID: ").strip()
+        print("Paste private key PEM (paste all lines, end with a blank line after the END marker):")
+        lines = []
+        while True:
+            line = input()
+            if line == "" and lines and "END" in lines[-1]:
+                break
+            lines.append(line)
+        github_private_key = "\n".join(lines)
+        try:
+            github_client = GitHubClient(app_id=github_app_id, private_key=github_private_key)
+            gh_login = github_client.get_bot_login()
+            print(f"  GitHub: authenticated as app '{gh_login}'")
+        except Exception:
+            print("  GitHub: invalid App ID or private key — check them and try again.")
+            sys.exit(1)
+        escaped_key = github_private_key.replace("\n", "\\n")
+        github_env_lines = f"GITHUB_APP_ID={github_app_id}\nGITHUB_APP_PRIVATE_KEY={escaped_key}\n"
 
     try:
         workspaces = asana_client.get_workspaces()
@@ -280,7 +309,7 @@ def _cmd_init() -> None:
     if not env_path.exists():
         env_path.write_text(
             f"ASANA_TOKEN={asana_token}\n"
-            f"GITHUB_TOKEN={github_token}\n"
+            f"{github_env_lines}"
             f"ASANA_ASSIGNEE_GID={asana_assignee_gid}\n"
         )
         print(f"\nWrote {env_path}")
