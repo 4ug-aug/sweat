@@ -230,7 +230,7 @@ def test_format_task_html_contains_metadata():
     assert "<strong>Priority:</strong>" in result
     assert "high" in result
     assert "org/repo" in result
-    assert "<pre><code>" in result
+    assert "<pre>" in result
     assert "1. Fix it" in result
 
 
@@ -242,7 +242,7 @@ def test_format_task_html_omits_solution_when_empty():
         "pseudo_solution": "",
     }
     result = _format_task_html(finding, "org/repo")
-    assert "<pre><code>" not in result
+    assert "<pre>" not in result
     assert "Proposed Solution" not in result
 
 
@@ -253,7 +253,7 @@ def test_format_task_html_omits_solution_when_missing():
         "description": "Something",
     }
     result = _format_task_html(finding, "org/repo")
-    assert "<pre><code>" not in result
+    assert "<pre>" not in result
 
 
 def test_format_task_html_escapes_values():

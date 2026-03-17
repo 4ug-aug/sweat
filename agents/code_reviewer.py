@@ -157,17 +157,19 @@ def _format_task_html(finding: dict, repo: str) -> str:
     solution_html = ""
     if pseudo_solution:
         solution_html = (
-            f"<p><strong>Proposed Solution</strong></p>"
-            f"<pre><code>{_html.escape(pseudo_solution)}</code></pre>"
+            f"<strong>Proposed Solution</strong>"
+            f"<pre>{_html.escape(pseudo_solution)}</pre>"
         )
 
     return (
         f"<body>"
-        f"<p><strong>Category:</strong> {category} &#160;|&#160; <strong>Priority:</strong> {priority}</p>"
-        f"<p><strong>Repository:</strong> {repo_escaped}</p>"
-        f"<p>{description}</p>"
+        f"<ul>"
+        f"<li><strong>Category:</strong> {category} | <strong>Priority:</strong> {priority}</li>"
+        f"<li><strong>Repository:</strong> {repo_escaped}</li>"
+        f"</ul>"
+        f"{description}"
         f"{solution_html}"
         f"<hr/>"
-        f"<p><em>Created by sweat code review agent</em></p>"
+        f"<em>Created by sweat code review agent</em>"
         f"</body>"
     )
