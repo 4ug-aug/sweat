@@ -29,18 +29,24 @@ _SAMPLE_FINDINGS = json.dumps(
                 "category": "inconsistent_pattern",
                 "priority": "high",
                 "description": "api/handlers.py uses mixed patterns",
+                "estimated_minutes": 30,
+                "pseudo_solution": "1. Standardize exception handling\n2. Add error middleware",
             },
             {
                 "title": "Dead import in utils module",
                 "category": "dead_code",
                 "priority": "medium",
                 "description": "utils/helpers.py:3 imports unused os module",
+                "estimated_minutes": 10,
+                "pseudo_solution": "1. Remove unused import\n2. Run tests",
             },
             {
                 "title": "Complex validation function",
                 "category": "complexity",
                 "priority": "low",
                 "description": "validators.py:45 has cyclomatic complexity of 15",
+                "estimated_minutes": 60,
+                "pseudo_solution": "1. Split into smaller functions\n2. Write unit tests",
             },
         ]
     }
@@ -181,6 +187,8 @@ def test_parse_findings_plain_json():
     findings = _parse_findings(_SAMPLE_FINDINGS)
     assert len(findings) == 3
     assert findings[0]["title"] == "Inconsistent error handling in API layer"
+    assert findings[0]["estimated_minutes"] == 30
+    assert "pseudo_solution" in findings[0]
 
 
 def test_parse_findings_markdown_fenced():
