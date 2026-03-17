@@ -11,7 +11,15 @@ KNOWLEDGE_DIR = str(Path(__file__).resolve().parent / "knowledge")
 ASANA_TOKEN = os.environ.get("ASANA_TOKEN", "")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID", "")
-GITHUB_APP_PRIVATE_KEY = os.environ.get("GITHUB_APP_PRIVATE_KEY", "").replace("\\n", "\n")
+GITHUB_APP_PRIVATE_KEY_PATH = os.environ.get("GITHUB_APP_PRIVATE_KEY_PATH", "")
+_key_from_env = os.environ.get("GITHUB_APP_PRIVATE_KEY", "").replace("\\n", "\n")
+if GITHUB_APP_PRIVATE_KEY_PATH and not _key_from_env:
+    try:
+        GITHUB_APP_PRIVATE_KEY = Path(os.path.expanduser(GITHUB_APP_PRIVATE_KEY_PATH)).read_text()
+    except OSError:
+        GITHUB_APP_PRIVATE_KEY = ""
+else:
+    GITHUB_APP_PRIVATE_KEY = _key_from_env
 
 AUDIT_LOG_PATH = os.environ.get("AUDIT_LOG_PATH", "audit.jsonl")
 

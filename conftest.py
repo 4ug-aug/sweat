@@ -7,6 +7,7 @@ os.environ.setdefault("GITHUB_TOKEN", "test-token")
 os.environ.setdefault("ASANA_ASSIGNEE_GID", "test-gid")
 os.environ.setdefault("GITHUB_APP_ID", "")
 os.environ.setdefault("GITHUB_APP_PRIVATE_KEY", "")
+os.environ.setdefault("GITHUB_APP_PRIVATE_KEY_PATH", "")
 
 # Redirect audit log to a temp file so tests don't pollute the production log
 os.environ.setdefault("AUDIT_LOG_PATH", os.path.join(tempfile.gettempdir(), "test_audit.jsonl"))

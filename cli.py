@@ -268,14 +268,18 @@ def _cmd_init() -> None:
         github_env_lines = f"GITHUB_TOKEN={github_token}\n"
     else:
         github_app_id = typer.prompt("GitHub App ID")
-        console.print("Paste private key PEM (paste all lines, end with a blank line after the END marker):")
-        lines: list[str] = []
+        default_key_path = "~/.sweat/github-app.pem"
         while True:
-            line = input()
-            if line == "" and lines and "END" in lines[-1]:
-                break
-            lines.append(line)
-        github_private_key = "\n".join(lines)
+            key_path_str = typer.prompt("Path to private key (.pem file)", default=default_key_path)
+            key_path = Path(os.path.expanduser(key_path_str))
+            if not key_path.exists():
+                console.print(f"[red]  ✗ File not found: {key_path}[/red]")
+                continue
+            github_private_key = key_path.read_text()
+            if "BEGIN" not in github_private_key:
+                console.print("[red]  ✗ File does not look like a PEM private key.[/red]")
+                continue
+            break
         with console.status("Validating...") as status:
             try:
                 gh_client = GitHubClient(app_id=github_app_id, private_key=github_private_key)
@@ -286,8 +290,7 @@ def _cmd_init() -> None:
                 raise typer.Exit(1)
         status.stop()
         console.print(f"[green]  ✓ Authenticated as app '{gh_login}'[/green]")
-        escaped_key = github_private_key.replace("\n", "\\n")
-        github_env_lines = f"GITHUB_APP_ID={github_app_id}\nGITHUB_APP_PRIVATE_KEY={escaped_key}\n"
+        github_env_lines = f"GITHUB_APP_ID={github_app_id}\nGITHUB_APP_PRIVATE_KEY_PATH={key_path_str}\n"
 
     # ── Step 3 / 4 — Asana Project ───────────────────────────────────────
     console.print(Panel("[bold]Step 3 / 4 — Asana Project[/bold]"))
