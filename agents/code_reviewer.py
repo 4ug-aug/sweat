@@ -1,4 +1,5 @@
 import difflib
+import html as _html
 import json
 import logging
 import os
@@ -86,8 +87,13 @@ class CodeReviewerAgent(BaseAgent):
                             title=finding["title"],
                         )
                         continue
-                    notes = _format_task_notes(finding, repo)
-                    await self.asana.create_task_async(project_id, finding["title"], notes)
+                    html_notes = _format_task_html(finding, repo)
+                    await self.asana.create_task_async(
+                        project_id,
+                        finding["title"],
+                        html_notes=html_notes,
+                        estimated_minutes=finding.get("estimated_minutes"),
+                    )
                     created += 1
                     audit.log_event(
                         "code_review_task_created",
@@ -141,11 +147,28 @@ def _is_duplicate(title: str, existing_titles: list[str]) -> bool:
     return False
 
 
-def _format_task_notes(finding: dict, repo: str) -> str:
+def _format_task_html(finding: dict, repo: str) -> str:
+    category = _html.escape(finding.get("category", "N/A"))
+    priority = _html.escape(finding.get("priority", "N/A"))
+    repo_escaped = _html.escape(repo)
+    description = _html.escape(finding.get("description", ""))
+    pseudo_solution = finding.get("pseudo_solution", "")
+
+    solution_html = ""
+    if pseudo_solution:
+        solution_html = (
+            f"<p><strong>Proposed Solution</strong></p>"
+            f"<pre><code>{_html.escape(pseudo_solution)}</code></pre>"
+        )
+
     return (
-        f"Category: {finding.get('category', 'N/A')}\n"
-        f"Priority: {finding.get('priority', 'N/A')}\n"
-        f"Repository: {repo}\n\n"
-        f"{finding.get('description', '')}\n\n"
-        f"---\nCreated by sweat code review agent"
+        f"<body>"
+        f"<p><strong>Category:</strong> {category} &nbsp;|&nbsp; "
+        f"<strong>Priority:</strong> {priority}<br/>"
+        f"<strong>Repository:</strong> {repo_escaped}</p>"
+        f"<p>{description}</p>"
+        f"{solution_html}"
+        f"<hr/>"
+        f"<em>Created by sweat code review agent</em>"
+        f"</body>"
     )

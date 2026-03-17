@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from agent import AgentResult
-from agents.code_reviewer import CodeReviewerAgent, _is_duplicate, _parse_findings
+from agents.code_reviewer import CodeReviewerAgent, _format_task_html, _is_duplicate, _parse_findings
 from clients.asana import AsanaClient
 from clients.github import GitHubClient
 
@@ -212,3 +212,81 @@ def test_is_duplicate_fuzzy_match():
 
 def test_is_duplicate_no_match():
     assert not _is_duplicate("Completely different task", ["Fix login bug", "Other task"])
+
+
+# --- Unit tests for _format_task_html ---
+
+
+def test_format_task_html_contains_metadata():
+    finding = {
+        "category": "dead_code",
+        "priority": "high",
+        "description": "Some description",
+        "pseudo_solution": "1. Fix it\n2. Test it",
+    }
+    result = _format_task_html(finding, "org/repo")
+    assert "<strong>Category:</strong>" in result
+    assert "dead_code" in result
+    assert "<strong>Priority:</strong>" in result
+    assert "high" in result
+    assert "org/repo" in result
+    assert "<pre><code>" in result
+    assert "1. Fix it" in result
+
+
+def test_format_task_html_omits_solution_when_empty():
+    finding = {
+        "category": "dead_code",
+        "priority": "low",
+        "description": "Something",
+        "pseudo_solution": "",
+    }
+    result = _format_task_html(finding, "org/repo")
+    assert "<pre><code>" not in result
+    assert "Proposed Solution" not in result
+
+
+def test_format_task_html_omits_solution_when_missing():
+    finding = {
+        "category": "dead_code",
+        "priority": "low",
+        "description": "Something",
+    }
+    result = _format_task_html(finding, "org/repo")
+    assert "<pre><code>" not in result
+
+
+def test_format_task_html_escapes_values():
+    finding = {
+        "category": "<script>",
+        "priority": "low",
+        "description": "A & B",
+        "pseudo_solution": "x < y",
+    }
+    result = _format_task_html(finding, "org/repo")
+    assert "<script>" not in result
+    assert "&lt;script&gt;" in result
+    assert "&amp;" in result
+    assert "&lt;" in result
+
+
+@patch("agents.code_reviewer.run_agent", new_callable=AsyncMock)
+@patch("agents.code_reviewer.shutil.rmtree")
+async def test_full_flow_passes_html_notes_and_estimated_minutes(mock_rmtree, mock_run_agent, tmp_path):
+    agent = _make_agent()
+    repo_path = str(tmp_path)
+    agent.github.clone_repo_async.return_value = repo_path
+
+    doc_path = tmp_path / "docs" / "code-quality.md"
+    doc_path.parent.mkdir(parents=True)
+    doc_path.write_text("# Quality Standards\nKeep it clean.")
+
+    mock_run_agent.return_value = AgentResult(success=True, summary=_SAMPLE_FINDINGS)
+    agent.asana.get_tasks_async.return_value = []
+
+    await agent.run_once()
+
+    first_call_kwargs = agent.asana.create_task_async.call_args_list[0].kwargs
+    assert "html_notes" in first_call_kwargs
+    assert "<strong>" in first_call_kwargs["html_notes"]
+    assert first_call_kwargs.get("estimated_minutes") == 30
