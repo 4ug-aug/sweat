@@ -116,7 +116,7 @@ async def _agent_loop(agent, loop_name: str, interval: int, initial_delay: float
         await asyncio.sleep(interval)
 
 
-async def _start() -> None:
+async def _start(dashboard_port: int = 8383, dashboard_host: str = "127.0.0.1", no_dashboard: bool = False) -> None:
     loop = asyncio.get_running_loop()
     stop = loop.create_future()
     for sig in (signal.SIGINT, signal.SIGTERM):
@@ -135,6 +135,15 @@ async def _start() -> None:
         )
         for agent, loop_name, interval, delay in agents
     ]
+
+    if not no_dashboard:
+        import uvicorn
+        from dashboard import app as dashboard_app
+        uvi_config = uvicorn.Config(dashboard_app, host=dashboard_host, port=dashboard_port, log_level="warning")
+        server = uvicorn.Server(uvi_config)
+        tasks.append(asyncio.create_task(server.serve(), name="dashboard"))
+        logging.info(f"Dashboard running at http://{dashboard_host}:{dashboard_port}")
+
     try:
         await stop
     finally:
@@ -462,11 +471,15 @@ def _cmd_init() -> None:
 
 
 @app.command()
-def start() -> None:
+def start(
+    no_dashboard: bool = typer.Option(False, "--no-dashboard", help="Disable the dashboard web UI"),
+    dashboard_port: int = typer.Option(8383, "--dashboard-port", help="Dashboard port"),
+    dashboard_host: str = typer.Option("127.0.0.1", "--dashboard-host", help="Dashboard host"),
+) -> None:
     """Start all configured agents."""
     _configure_logging()
     telemetry.init()
-    asyncio.run(_start())
+    asyncio.run(_start(dashboard_port=dashboard_port, dashboard_host=dashboard_host, no_dashboard=no_dashboard))
 
 
 @app.command()
