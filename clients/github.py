@@ -127,7 +127,7 @@ class GitHubClient:
 
     def get_bot_login(self) -> str:
         if self._mode == "app":
-            return self._gh.get_app().slug
+            return self._gh.get_app().slug + "[bot]"
         return self._gh.get_user().login
 
     def get_open_prs(self, repo: str) -> list[dict]:

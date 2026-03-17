@@ -278,7 +278,7 @@ def test_app_mode_get_bot_login_returns_slug(mock_github_class, mock_integration
 
     login = client.get_bot_login()
 
-    assert login == "my-app"
+    assert login == "my-app[bot]"
     mock_gh.get_app.return_value.get_user = MagicMock()  # should not be called
     mock_gh.get_user.assert_not_called()
 
