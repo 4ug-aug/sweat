@@ -188,7 +188,7 @@ def test_parse_findings_plain_json():
     assert len(findings) == 3
     assert findings[0]["title"] == "Inconsistent error handling in API layer"
     assert findings[0]["estimated_minutes"] == 30
-    assert "pseudo_solution" in findings[0]
+    assert findings[0]["pseudo_solution"] == "1. Standardize exception handling\n2. Add error middleware"
 
 
 def test_parse_findings_markdown_fenced():
