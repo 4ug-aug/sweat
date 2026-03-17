@@ -223,15 +223,15 @@ def _cmd_init() -> None:
 
     # ── Step 1 / 4 — Asana ──────────────────────────────────────────────
     console.print(Panel("[bold]Step 1 / 4 — Asana[/bold]"))
-    asana_token = typer.prompt("Asana personal access token", hide_input=True)
+    asana_token = typer.prompt("Asana personal access token", hide_input=True).strip()
     asana_client = AsanaClient(asana_token)
     with console.status("Validating...") as status:
         try:
             me = asana_client.get_current_user()
             asana_assignee_gid = me["gid"]
-        except Exception:
+        except Exception as exc:
             status.stop()
-            console.print("[red]  ✗ Invalid token — check it and try again.[/red]")
+            console.print(f"[red]  ✗ Asana validation failed: {exc}[/red]")
             raise typer.Exit(1)
     status.stop()
     console.print(f"[green]  ✓ Authenticated as {me['name']}[/green]")
