@@ -21,6 +21,7 @@ sweat.config.json
 knowledge/
 *.pem
 .worktrees/
+.sweat/
 
 
 # Project files, i.e. `.project`, `.actionScriptProperties` and `.flexProperties`
