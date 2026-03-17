@@ -124,14 +124,23 @@ async def _start() -> None:
         return
 
     logging.info(f"sweat service starting — {len(agents)} agent(s)")
-    tasks = [asyncio.create_task(_agent_loop(agent, loop_name, interval, delay)) for agent, loop_name, interval, delay in agents]
+    tasks = [
+        asyncio.create_task(
+            _agent_loop(agent, loop_name, interval, delay),
+            name=f"{agent.agent_id}:{loop_name}",
+        )
+        for agent, loop_name, interval, delay in agents
+    ]
     try:
         await stop
     finally:
         logging.info("sweat service shutting down")
         for t in tasks:
             t.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
+        await asyncio.wait_for(
+            asyncio.gather(*tasks, return_exceptions=True),
+            timeout=10,
+        )
 
 
 async def _run_once(type_filter: str) -> None:
@@ -265,9 +274,9 @@ def _cmd_init() -> None:
             try:
                 gh_client = GitHubClient(token=github_token)
                 gh_login = gh_client.get_bot_login()
-            except Exception:
+            except Exception as exc:
                 status.stop()
-                console.print("[red]  ✗ Invalid token — check it and try again.[/red]")
+                console.print(f"[red]  ✗ GitHub PAT validation failed: {exc}[/red]")
                 raise typer.Exit(1)
         status.stop()
         console.print(f"[green]  ✓ Authenticated as {gh_login}[/green]")
@@ -290,9 +299,9 @@ def _cmd_init() -> None:
             try:
                 gh_client = GitHubClient(app_id=github_app_id, private_key=github_private_key)
                 gh_login = gh_client.get_bot_login()
-            except Exception:
+            except Exception as exc:
                 status.stop()
-                console.print("[red]  ✗ Invalid App ID or private key — check them and try again.[/red]")
+                console.print(f"[red]  ✗ GitHub App validation failed: {exc}[/red]")
                 raise typer.Exit(1)
         status.stop()
         console.print(f"[green]  ✓ Authenticated as app '{gh_login}'[/green]")
@@ -303,9 +312,9 @@ def _cmd_init() -> None:
     with console.status("Fetching workspaces...") as status:
         try:
             workspaces = asana_client.get_workspaces()
-        except Exception:
+        except Exception as exc:
             status.stop()
-            console.print("[red]  ✗ Failed to fetch Asana workspaces.[/red]")
+            console.print(f"[red]  ✗ Failed to fetch Asana workspaces: {exc}[/red]")
             raise typer.Exit(1)
     status.stop()
 
@@ -335,9 +344,9 @@ def _cmd_init() -> None:
     with console.status("Fetching projects...") as status:
         try:
             projects = asana_client.get_projects(workspace["gid"])
-        except Exception:
+        except Exception as exc:
             status.stop()
-            console.print(f"[red]  ✗ Failed to fetch projects for workspace '{workspace['name']}'.[/red]")
+            console.print(f"[red]  ✗ Failed to fetch projects for workspace '{workspace['name']}': {exc}[/red]")
             raise typer.Exit(1)
     status.stop()
 

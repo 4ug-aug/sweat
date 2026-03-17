@@ -24,6 +24,8 @@ class ImplementerAgent(BaseAgent):
     def __init__(self, *, dry_run: bool = False, **kwargs):
         super().__init__(**kwargs)
         self.dry_run = dry_run
+        # Late imports to avoid circular dependency:
+        # agents.implementer -> responsibilities.registry -> responsibilities.review_responder -> agents.helpers
         from responsibilities.claims import ResponsibilityClaims
         from responsibilities.registry import RESPONSIBILITY_TYPES
         from responsibilities.state import JsonFileState

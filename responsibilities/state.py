@@ -5,6 +5,12 @@ from typing import Protocol
 
 
 class ResponsibilityStateBackend(Protocol):
+    """Protocol for responsibility state persistence.
+
+    Implementations track which events have been handled and how many
+    revision rounds have been attempted per PR.
+    """
+
     def is_handled(self, event_key: str) -> bool: ...
     def mark_handled(self, event_key: str, metadata: dict | None = None) -> None: ...
     def get_revision_count(self, pr_key: str) -> int: ...

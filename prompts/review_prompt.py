@@ -1,17 +1,10 @@
+from prompts import knowledge_blocks
+
+
 def build_review_prompt(meta: dict, diff: str, repo_summary: str, knowledge_dir: str = "") -> str:
-    knowledge_before = ""
-    knowledge_after = ""
-    if knowledge_dir:
-        knowledge_before = f"""
-## Knowledge base
-
-Before reviewing, read `{knowledge_dir}/MEMORY.md` to see available knowledge topics. Then read any files relevant to this review (e.g. pitfalls, patterns). Do not read all files — only what's relevant based on the index.
-
-"""
-        knowledge_after = f"""
-
-After completing your review, write a structured entry to the most relevant knowledge file(s) in `{knowledge_dir}/`. Use the entry format shown in MEMORY.md. If you found a pitfall, write to `pitfalls/`. If you observed a positive pattern, write to `patterns/`. Keep entries concise and factual. Only update MEMORY.md if you created a new topic file.
-"""
+    kb_before, kb_after = knowledge_blocks(knowledge_dir)
+    knowledge_before = f"\n## Knowledge base\n{kb_before}\n" if kb_before else ""
+    knowledge_after = f"\n{kb_after}" if kb_after else ""
 
     return f"""You are an expert code reviewer. Review the following pull request and provide structured feedback.
 {knowledge_before}

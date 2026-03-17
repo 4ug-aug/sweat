@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import logging
 import tempfile
 from datetime import datetime, timedelta, timezone
 
@@ -7,6 +8,8 @@ import git
 from github import Auth, Github, GithubIntegration
 
 from exceptions import GitHubError
+
+logger = logging.getLogger(__name__)
 
 _PRIORITY_FILES = {"CLAUDE.md"}
 _SUMMARY_FILES = {"README.md", "README.rst", "README", "package.json"}
@@ -75,8 +78,8 @@ class GitHubClient:
                     priority.append(snippet)
                 else:
                     supporting.append(snippet)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("Failed to decode blob for %s: %s", entry.path, exc)
 
         snippets = priority + supporting
         parts = [f"## File tree ({repo})\n{tree_str}"]

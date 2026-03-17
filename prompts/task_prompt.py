@@ -1,13 +1,8 @@
+from prompts import knowledge_blocks
+
+
 def build_agent_prompt(task: dict, repo: str, knowledge_dir: str = "") -> str:
-    knowledge_before = ""
-    knowledge_after = ""
-    if knowledge_dir:
-        knowledge_before = f"""
-0. Before starting, read `{knowledge_dir}/MEMORY.md` to see available knowledge topics. Then read any files relevant to your current task. Do not read all files — only what's relevant based on the index.
-"""
-        knowledge_after = f"""
-6. Before finishing, write a structured entry to the most relevant knowledge file(s) in `{knowledge_dir}/`. Use the entry format shown in MEMORY.md. If you encountered a pitfall or mistake, write to `pitfalls/`. If you observed a positive pattern, write to `patterns/`. If you learned something about task types, write to `tasks/`. Keep entries concise and factual. Only update MEMORY.md if you created a new topic file.
-"""
+    knowledge_before, knowledge_after = knowledge_blocks(knowledge_dir)
 
     return f"""You are an AI software engineer working on the repository: {repo}
 

@@ -16,10 +16,6 @@ if TYPE_CHECKING:
 
 
 class CommentResponder(BaseResponsibility):
-    def __init__(self, max_revision_rounds: int = 3):
-        self._max_revision_rounds = max_revision_rounds
-        self._state: "ResponsibilityStateBackend | None" = None
-
     async def check(
         self,
         snapshot: "PRSnapshot",
@@ -84,17 +80,13 @@ class CommentResponder(BaseResponsibility):
         asana: "AsanaClient",
         agent_id: str,
     ) -> None:
-        assert self._state is not None, "check() must be called before execute()"
+        if await self._check_revision_limit(
+            item, github, agent_id,
+            "Please review the comments and take action manually.",
+        ):
+            return
         state = self._state
         pr_key = f"{item.repo}#PR{item.pr_number}"
-
-        if state.get_revision_count(pr_key) >= self._max_revision_rounds:
-            msg = (
-                f"I've reached the maximum revision rounds ({self._max_revision_rounds}) for this PR. "
-                "Please review the comments and take action manually."
-            )
-            await github.post_pr_comment_async(item.repo, item.pr_number, msg)
-            return
 
         diff = await github.get_pr_diff_async(item.repo, item.pr_number)
         repo_summary = await github.get_repo_summary_async(item.repo)

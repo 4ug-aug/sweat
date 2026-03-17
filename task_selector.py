@@ -59,13 +59,14 @@ async def select_task(tasks: list[dict], repo_context: str = "") -> dict | None:
         except Exception as exc:
             span.set_status(telemetry.trace.StatusCode.ERROR, str(exc))
             span.record_exception(exc)
+            exit_code = getattr(exc, "exit_code", None)
             msg = str(exc)
-            if "exit code 1" in msg or "exit code: 1" in msg:
+            if exit_code == 1 or "exit code 1" in msg or "exit code: 1" in msg:
                 raise TaskSelectorError(
                     "Claude CLI exited with code 1 — you may need to re-authenticate. "
                     "Run `claude` interactively and log in, then retry."
                 ) from exc
-            raise TaskSelectorError(f"Claude agent failed during task selection: {exc}") from exc
+            raise TaskSelectorError(f"Claude agent failed during task selection ({type(exc).__name__}): {exc}") from exc
         finally:
             if telemetry.claude_call_duration:
                 telemetry.claude_call_duration.record(time.monotonic() - start)

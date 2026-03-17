@@ -16,3 +16,7 @@ class AgentError(SweatError):
 
 class TaskSelectorError(SweatError):
     """Raised when the task selector cannot produce a result."""
+
+
+class ConfigError(SweatError):
+    """Raised when configuration is invalid or incomplete."""
