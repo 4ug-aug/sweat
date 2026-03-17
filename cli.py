@@ -7,7 +7,6 @@ Usage:
     sweat log [--last N]
     sweat init
 """
-import argparse
 import asyncio
 import getpass
 import json
@@ -18,6 +17,11 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+
+import typer
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 
 import config
 import telemetry
@@ -39,6 +43,9 @@ volumes:
 from agents.registry import AGENT_TYPES
 from clients.asana import AsanaClient
 from clients.github import GitHubClient
+
+console = Console()
+app = typer.Typer(help="sweat — agentic software engineer service")
 
 
 def _configure_logging() -> None:
@@ -382,42 +389,52 @@ def _cmd_up(detach: bool) -> None:
         sys.exit(e.returncode)
 
 
-def main() -> None:
+@app.command()
+def start() -> None:
+    """Start all configured agents."""
     _configure_logging()
-    parser = argparse.ArgumentParser(prog="sweat", description="sweat — agentic software engineer service")
-    sub = parser.add_subparsers(dest="command")
+    telemetry.init()
+    asyncio.run(_start())
 
-    sub.add_parser("start", help="Start all configured agents")
 
-    sub.add_parser("review", help="Run reviewer agents once and exit")
+@app.command()
+def review() -> None:
+    """Run reviewer agents once and exit."""
+    _configure_logging()
+    asyncio.run(_run_once("reviewer"))
 
-    sub.add_parser("code-review", help="Run code review agents once and exit")
 
-    log_cmd = sub.add_parser("log", help="View recent audit log entries")
-    log_cmd.add_argument("--last", type=int, default=20, metavar="N",
-                         help="Number of recent entries to show (default: 20)")
+@app.command(name="code-review")  # explicit to document the CLI name; Typer would auto-convert underscores to hyphens anyway
+def code_review() -> None:
+    """Run code review agents once and exit."""
+    _configure_logging()
+    asyncio.run(_run_once("code_reviewer"))
 
-    sub.add_parser("init", help="Interactive setup: create .env, sweat.config.json, and docker-compose.yml")
 
-    up_cmd = sub.add_parser("up", help="Build and start sweat via Docker Compose")
-    up_cmd.add_argument("-d", "--detach", action="store_true", help="Run containers in the background")
+@app.command()
+def log(
+    last: int = typer.Option(20, "--last", help="Number of recent entries to show"),
+) -> None:
+    """View recent audit log entries."""
+    _cmd_log(last)
 
-    args = parser.parse_args()
-    if args.command == "start":
-        telemetry.init()
-        asyncio.run(_start())
-    elif args.command == "review":
-        asyncio.run(_run_once("reviewer"))
-    elif args.command == "code-review":
-        asyncio.run(_run_once("code_reviewer"))
-    elif args.command == "log":
-        _cmd_log(args.last)
-    elif args.command == "init":
-        _cmd_init()
-    elif args.command == "up":
-        _cmd_up(args.detach)
-    else:
-        parser.print_help()
+
+@app.command()
+def init() -> None:
+    """Interactive setup: create .env, sweat.config.json, and docker-compose.yml."""
+    _cmd_init()
+
+
+@app.command()
+def up(
+    detach: bool = typer.Option(False, "--detach", "-d", help="Run containers in background"),
+) -> None:
+    """Build and start sweat via Docker Compose."""
+    _cmd_up(detach)
+
+
+def main() -> None:
+    app()
 
 
 if __name__ == "__main__":
