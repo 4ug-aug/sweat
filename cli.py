@@ -248,7 +248,12 @@ def _cmd_init() -> None:
             "     • Issues: Read & Write (optional, for task comments)\n"
             "4. Click [bold]Create GitHub App[/bold] — note the [bold]App ID[/bold] at the top of the settings page\n"
             "5. Scroll down and click [bold]Generate a private key[/bold] — this downloads a .pem file\n"
-            "6. Install the app on your repo: App settings → [bold]Install App[/bold] → select the repo",
+            "6. Install the app:\n"
+            "     • In the app settings, click [bold]Install App[/bold] in the left sidebar\n"
+            "     • Choose the account or organisation to install it on\n"
+            "     • Select [bold]Only select repositories[/bold], pick your repo, and click Install\n"
+            "     • For an org repo: the org owner may need to approve the installation under\n"
+            "       org Settings → [bold]Third-party Access → GitHub Apps[/bold]",
             title="ℹ How to create a GitHub App",
             border_style="blue",
         ))
