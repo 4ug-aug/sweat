@@ -46,7 +46,7 @@ class _UsersProxy:
         self._api = asana.UsersApi(api_client)
 
     def get_me(self):
-        return self._api.get_me({"opt_fields": "gid,name,email"})
+        return self._api.get_user("me", {"opt_fields": "gid,name,email"})
 
 
 class _WorkspacesProxy:
