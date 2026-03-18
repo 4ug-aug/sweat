@@ -412,8 +412,12 @@
       grid.className = 'cards-grid';
       for (const agent of agents) {
         const repos = Array.isArray(agent.repos) ? agent.repos : [];
+        const skills = Array.isArray(agent.skills) ? agent.skills : [];
         const repoChips = repos.length
           ? repos.map(r => `<span class="repo-chip">${esc(r)}</span>`).join('')
+          : '<span style="color:hsl(0 0% 65%)">none</span>';
+        const skillChips = skills.length
+          ? skills.map(s => `<span class="repo-chip">${esc(s)}</span>`).join('')
           : '<span style="color:hsl(0 0% 65%)">none</span>';
 
         const errorHtml = agent.last_error
@@ -444,6 +448,10 @@
             <div class="card-row">
               <span class="card-label">Repos</span>
               <span class="repos-list">${repoChips}</span>
+            </div>
+            <div class="card-row">
+              <span class="card-label">Skills</span>
+              <span class="repos-list">${skillChips}</span>
             </div>
             ${errorHtml}
           </div>`;

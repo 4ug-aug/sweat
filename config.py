@@ -5,6 +5,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from agents.registry import AGENT_TYPES
 from exceptions import ConfigError
 
 load_dotenv()
@@ -35,7 +36,9 @@ else:
 
 AUDIT_LOG_PATH = os.environ.get("AUDIT_LOG_PATH", "audit.jsonl")
 
-RESPONSIBILITIES_STATE_PATH = os.environ.get("RESPONSIBILITIES_STATE_PATH", "responsibilities_state.json")
+RESPONSIBILITIES_STATE_PATH = os.environ.get(
+    "RESPONSIBILITIES_STATE_PATH", "responsibilities_state.json"
+)
 
 
 _REQUIRED_AGENT_KEYS = {"id", "type"}
@@ -47,10 +50,11 @@ def _validate_agent_config(agent_cfg: dict, index: int) -> None:
         raise ConfigError(
             f"Agent entry {index} in sweat.config.json is missing required keys: {missing}"
         )
-    if agent_cfg["type"] not in ("implementer", "reviewer", "code_reviewer"):
+    if agent_cfg["type"] not in AGENT_TYPES:
         logger.warning(
             "Agent entry %d has unknown type %r — it will be skipped at runtime",
-            index, agent_cfg["type"],
+            index,
+            agent_cfg["type"],
         )
 
 
@@ -64,7 +68,7 @@ def _load_agents() -> list[dict]:
     agents = data["agents"] if isinstance(data, dict) else data
     if not isinstance(agents, list):
         raise ConfigError(
-            "sweat.config.json must contain a list of agents (or {\"agents\": [...]})"
+            'sweat.config.json must contain a list of agents (or {"agents": [...]})'
         )
     for i, agent_cfg in enumerate(agents):
         _validate_agent_config(agent_cfg, i)

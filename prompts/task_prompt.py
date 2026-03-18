@@ -1,10 +1,17 @@
 from prompts import knowledge_blocks
 
 
-def build_agent_prompt(task: dict, repo: str, knowledge_dir: str = "") -> str:
+def build_agent_prompt(
+    task: dict,
+    repo: str,
+    knowledge_dir: str = "",
+    skill_fragments: str = "",
+) -> str:
     knowledge_before, knowledge_after = knowledge_blocks(knowledge_dir)
+    skills_section = f"\n## Applied Skills\n\n{skill_fragments}\n" if skill_fragments else ""
 
     return f"""You are an AI software engineer working on the repository: {repo}
+{skills_section}
 
 Your task (Asana GID: {task['gid']}):
 **{task['name']}**

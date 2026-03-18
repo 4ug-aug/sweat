@@ -11,6 +11,9 @@ from clients.github import GitHubClient
 
 app = FastAPI(title="sweat dashboard")
 DASHBOARD_HTML = Path(__file__).parent / "dashboard.html"
+_DEFAULT_SKILLS_BY_TYPE = {
+    "security_reviewer": ["security_reviewer"],
+}
 
 
 @app.get("/")
@@ -26,9 +29,15 @@ def get_agents():
         agent_id = agent_cfg["id"]
         state = states.get(agent_id, {})
         repos = [p["github_repo"] for p in agent_cfg.get("projects", [])]
+        configured_skills = agent_cfg.get("skills")
+        if isinstance(configured_skills, list):
+            skills = configured_skills
+        else:
+            skills = _DEFAULT_SKILLS_BY_TYPE.get(agent_cfg["type"], [])
         result.append({
             "id": agent_id,
             "type": agent_cfg["type"],
+            "skills": skills,
             "interval": agent_cfg.get("interval"),
             "repos": repos,
             "status": state.get("status", "unknown"),

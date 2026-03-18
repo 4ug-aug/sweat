@@ -29,6 +29,7 @@ class ImplementerAgent(BaseAgent):
         from responsibilities.claims import ResponsibilityClaims
         from responsibilities.registry import RESPONSIBILITY_TYPES
         from responsibilities.state import JsonFileState
+        from skills.registry import SKILLS
         self._state = JsonFileState()
         self._resp_claims = ResponsibilityClaims.get()
         responsibility_names = self.config.get("responsibilities", ["review_responder", "ci_responder", "comment_responder"])
@@ -37,6 +38,18 @@ class ImplementerAgent(BaseAgent):
             for name in responsibility_names
             if name in RESPONSIBILITY_TYPES
         ]
+        skill_names = self.config.get("skills", [])
+        unknown_skills = [name for name in skill_names if name not in SKILLS]
+        if unknown_skills:
+            logging.warning(
+                f"[{self.agent_id}] Unknown skills in config ignored: {', '.join(unknown_skills)}"
+            )
+        self._skills = [SKILLS[s]() for s in skill_names if s in SKILLS]
+        self._skill_names = [s.name for s in self._skills]
+        if self._skill_names:
+            logging.info(
+                f"[{self.agent_id}] Configured skills: {', '.join(self._skill_names)}"
+            )
 
     @property
     def default_interval(self) -> int:
@@ -194,14 +207,40 @@ class ImplementerAgent(BaseAgent):
             try:
                 await self.github.create_branch_async(repo_path, branch)
                 import config
+                from skills.base import SkillContext
 
+                skill_ctx = SkillContext(
+                    task=task,
+                    repo=repo,
+                    repo_path=repo_path,
+                    agent_id=self.agent_id,
+                )
+                if self._skill_names:
+                    logging.info(
+                        f"[{self.agent_id}] Applying skills for task {task['gid']}: {', '.join(self._skill_names)}"
+                    )
+                    audit.log_event(
+                        "skills_applied",
+                        agent_id=self.agent_id,
+                        task_gid=task["gid"],
+                        repo=repo,
+                        skills=", ".join(self._skill_names),
+                    )
+                for skill in self._skills:
+                    await skill.setup(skill_ctx)
+                skill_fragments = "\n\n".join(
+                    s.build_prompt_fragment(skill_ctx) for s in self._skills
+                )
                 prompt = build_agent_prompt(
-                    task, repo, knowledge_dir=config.KNOWLEDGE_DIR
+                    task, repo, knowledge_dir=config.KNOWLEDGE_DIR, skill_fragments=skill_fragments
                 )
                 try:
                     result = await run_agent(repo_path, prompt)
                 except AgentError as exc:
                     result = AgentResult(success=False, error=str(exc))
+                finally:
+                    for skill in self._skills:
+                        await skill.teardown(skill_ctx)
 
                 elapsed_minutes = max(
                     1, math.ceil((time.monotonic() - start_time) / 60)

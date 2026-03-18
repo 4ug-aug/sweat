@@ -144,6 +144,7 @@ def test_create_task_with_estimated_minutes(mock_client_class):
     mock_client = MagicMock()
     mock_client_class.return_value = mock_client
     mock_client.tasks.create_task.return_value = {"gid": "999", "name": "Task"}
+    mock_client.projects.get_project.return_value = {"custom_field_settings": []}
 
     client = AsanaClient("test-token")
     client.create_task("PROJECT_GID", "Task", estimated_minutes=60)
@@ -157,6 +158,7 @@ async def test_create_task_async_forwards_html_notes_and_estimated_minutes(mock_
     mock_client = MagicMock()
     mock_client_class.return_value = mock_client
     mock_client.tasks.create_task.return_value = {"gid": "999", "name": "Task"}
+    mock_client.projects.get_project.return_value = {"custom_field_settings": []}
 
     client = AsanaClient("test-token")
     await client.create_task_async(
@@ -167,6 +169,31 @@ async def test_create_task_async_forwards_html_notes_and_estimated_minutes(mock_
     assert call_body["html_notes"] == "<body>html</body>"
     assert "notes" not in call_body
     assert call_body["estimated_duration_minutes"] == 45
+
+
+@patch("clients.asana._Client")
+def test_create_task_sets_estimated_time_custom_field_when_available(mock_client_class):
+    mock_client = MagicMock()
+    mock_client_class.return_value = mock_client
+    mock_client.tasks.create_task.return_value = {"gid": "999", "name": "Task"}
+    mock_client.projects.get_project.return_value = {
+        "custom_field_settings": [
+            {
+                "custom_field": {
+                    "gid": "CF_ESTIMATE",
+                    "name": "Estimated time",
+                    "type": "number",
+                }
+            }
+        ]
+    }
+
+    client = AsanaClient("test-token")
+    client.create_task("PROJECT_GID", "Task", estimated_minutes=30)
+
+    call_body = mock_client.tasks.create_task.call_args[0][0]
+    assert call_body["estimated_duration_minutes"] == 30
+    assert call_body["custom_fields"]["CF_ESTIMATE"] == 30
 
 
 @patch("clients.asana._Client")
@@ -199,3 +226,28 @@ def test_create_task_html_notes_takes_precedence_over_notes(mock_client_class):
     call_body = mock_client.tasks.create_task.call_args[0][0]
     assert call_body["html_notes"] == "<body>rich</body>"
     assert "notes" not in call_body
+
+
+@patch("clients.asana._Client")
+def test_create_task_retries_with_plain_notes_on_xml_error(mock_client_class):
+    mock_client = MagicMock()
+    mock_client_class.return_value = mock_client
+    mock_client.tasks.create_task.side_effect = [
+        Exception("xml_parsing_error: XML is invalid"),
+        {"gid": "999", "name": "Task"},
+    ]
+
+    client = AsanaClient("test-token")
+    result = client.create_task(
+        "PROJECT_GID",
+        "Task",
+        html_notes="<body><strong>Description</strong><pre>Line 1<br/>Line 2</pre></body>",
+    )
+
+    assert result["gid"] == "999"
+    assert mock_client.tasks.create_task.call_count == 2
+    first_body = mock_client.tasks.create_task.call_args_list[0][0][0]
+    second_body = mock_client.tasks.create_task.call_args_list[1][0][0]
+    assert "html_notes" in first_body
+    assert "html_notes" not in second_body
+    assert second_body["notes"] == "Description\nLine 1\nLine 2"

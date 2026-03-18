@@ -183,15 +183,80 @@ def test_get_pr_check_status(mock_github_class):
     mock_pr = MagicMock()
     mock_pr.head.sha = "abc123"
     mock_repo.get_pull.return_value = mock_pr
-    mock_status = MagicMock()
-    mock_status.state = "success"
-    mock_repo.get_commit.return_value.get_combined_status.return_value = mock_status
+    mock_commit = mock_repo.get_commit.return_value
+    mock_run = MagicMock()
+    mock_run.status = "completed"
+    mock_run.conclusion = "success"
+    mock_commit.get_check_runs.return_value = [mock_run]
     client = GitHubClient("test-token")
 
     state = client.get_pr_check_status("org/repo", 5)
 
     assert state == "success"
     mock_repo.get_commit.assert_called_once_with("abc123")
+
+
+@patch("clients.github.Github")
+def test_get_pr_check_status_pending_when_run_in_progress(mock_github_class):
+    mock_gh = MagicMock()
+    mock_github_class.return_value = mock_gh
+    mock_repo = MagicMock()
+    mock_gh.get_repo.return_value = mock_repo
+    mock_pr = MagicMock()
+    mock_pr.head.sha = "abc123"
+    mock_repo.get_pull.return_value = mock_pr
+    mock_commit = mock_repo.get_commit.return_value
+    mock_run = MagicMock()
+    mock_run.status = "in_progress"
+    mock_run.conclusion = None
+    mock_commit.get_check_runs.return_value = [mock_run]
+
+    client = GitHubClient("test-token")
+    state = client.get_pr_check_status("org/repo", 5)
+
+    assert state == "pending"
+
+
+@patch("clients.github.Github")
+def test_get_pr_check_status_failure_when_run_failed(mock_github_class):
+    mock_gh = MagicMock()
+    mock_github_class.return_value = mock_gh
+    mock_repo = MagicMock()
+    mock_gh.get_repo.return_value = mock_repo
+    mock_pr = MagicMock()
+    mock_pr.head.sha = "abc123"
+    mock_repo.get_pull.return_value = mock_pr
+    mock_commit = mock_repo.get_commit.return_value
+    mock_run = MagicMock()
+    mock_run.status = "completed"
+    mock_run.conclusion = "failure"
+    mock_commit.get_check_runs.return_value = [mock_run]
+
+    client = GitHubClient("test-token")
+    state = client.get_pr_check_status("org/repo", 5)
+
+    assert state == "failure"
+
+
+@patch("clients.github.Github")
+def test_get_pr_check_status_falls_back_to_combined_status(mock_github_class):
+    mock_gh = MagicMock()
+    mock_github_class.return_value = mock_gh
+    mock_repo = MagicMock()
+    mock_gh.get_repo.return_value = mock_repo
+    mock_pr = MagicMock()
+    mock_pr.head.sha = "abc123"
+    mock_repo.get_pull.return_value = mock_pr
+    mock_commit = mock_repo.get_commit.return_value
+    mock_commit.get_check_runs.return_value = []
+    mock_status = MagicMock()
+    mock_status.state = "success"
+    mock_commit.get_combined_status.return_value = mock_status
+
+    client = GitHubClient("test-token")
+    state = client.get_pr_check_status("org/repo", 5)
+
+    assert state == "success"
 
 
 @patch("clients.github.Github")

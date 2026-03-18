@@ -453,6 +453,18 @@ def _cmd_init() -> None:
                     }
                 ],
             },
+            {
+                "id": "security-reviewer",
+                "type": "security_reviewer",
+                "interval": 86400,
+                "max_tasks_per_run": 3,
+                "projects": [
+                    {
+                        "asana_project_id": asana_project_id,
+                        "github_repo": github_repo,
+                    }
+                ],
+            },
         ]
     }
     config_path = cwd / "sweat.config.json"

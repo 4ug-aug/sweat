@@ -1,5 +1,7 @@
 import asyncio
+import html as _html
 import logging
+import re
 
 import asana
 
@@ -64,6 +66,12 @@ class _ProjectsProxy:
     def get_projects_for_workspace(self, workspace_gid):
         return self._api.get_projects_for_workspace(workspace_gid, {"opt_fields": "gid,name"})
 
+    def get_project(self, project_gid, opt_fields=None):
+        opts = {}
+        if opt_fields:
+            opts["opt_fields"] = opt_fields
+        return self._api.get_project(project_gid, opts)
+
 
 class _TasksProxy:
     def __init__(self, api_client):
@@ -107,6 +115,7 @@ class _TimeTrackingProxy:
 class AsanaClient:
     def __init__(self, token: str):
         self._client = _Client(token)
+        self._estimated_time_field_gid_cache: dict[str, str | None] = {}
 
     def get_current_user(self) -> dict:
         try:
@@ -196,11 +205,75 @@ class AsanaClient:
             else:
                 body["notes"] = notes
             if estimated_minutes is not None:
-                body["estimated_duration_minutes"] = estimated_minutes
+                normalized_minutes = int(estimated_minutes)
+                body["estimated_duration_minutes"] = normalized_minutes
+
+                estimated_time_field_gid = self._get_estimated_time_field_gid(project_id)
+                if estimated_time_field_gid:
+                    body["custom_fields"] = {
+                        estimated_time_field_gid: normalized_minutes
+                    }
             result = self._client.tasks.create_task(body)
             return result
         except Exception as exc:
+            if html_notes and _is_xml_parsing_error(exc):
+                logger.warning(
+                    "Asana rejected html_notes XML for project %s; retrying with plain notes",
+                    project_id,
+                )
+                fallback_body = dict(body)
+                fallback_body.pop("html_notes", None)
+                fallback_body["notes"] = notes or _html_notes_to_plain_text(html_notes)
+                try:
+                    return self._client.tasks.create_task(fallback_body)
+                except Exception as fallback_exc:
+                    raise AsanaError(
+                        f"Failed to create task in project {project_id}: {fallback_exc}"
+                    ) from fallback_exc
             raise AsanaError(f"Failed to create task in project {project_id}: {exc}") from exc
+
+    def _get_estimated_time_field_gid(self, project_id: str) -> str | None:
+        cached = self._estimated_time_field_gid_cache.get(project_id)
+        if project_id in self._estimated_time_field_gid_cache:
+            return cached
+
+        try:
+            project = self._client.projects.get_project(
+                project_id,
+                opt_fields=(
+                    "custom_field_settings.custom_field.gid,"
+                    "custom_field_settings.custom_field.name,"
+                    "custom_field_settings.custom_field.type"
+                ),
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to load custom field settings for project %s: %s",
+                project_id,
+                exc,
+            )
+            self._estimated_time_field_gid_cache[project_id] = None
+            return None
+
+        settings = project.get("custom_field_settings", [])
+        for setting in settings:
+            custom_field = setting.get("custom_field", {})
+            name = (custom_field.get("name") or "").strip().lower()
+            field_type = custom_field.get("type")
+            if field_type != "number":
+                continue
+            if name in {
+                "estimated time",
+                "estimate",
+                "estimated minutes",
+                "estimated duration",
+            }:
+                field_gid = custom_field.get("gid")
+                self._estimated_time_field_gid_cache[project_id] = field_gid
+                return field_gid
+
+        self._estimated_time_field_gid_cache[project_id] = None
+        return None
 
     def get_tasks(self, project_id: str) -> list[dict]:
         try:
@@ -250,3 +323,23 @@ class AsanaClient:
 
     async def get_tasks_async(self, project_id: str) -> list[dict]:
         return await asyncio.to_thread(self.get_tasks, project_id)
+
+
+def _is_xml_parsing_error(exc: Exception) -> bool:
+    text = str(exc).lower()
+    return "xml_parsing_error" in text or "xml is invalid" in text
+
+
+def _html_notes_to_plain_text(html_notes: str) -> str:
+    text = re.sub(r"<\s*br\s*/?\s*>", "\n", html_notes, flags=re.IGNORECASE)
+    text = re.sub(
+        r"</\s*(li|p|pre|ul|ol|h1|h2|h3|h4|h5|h6|strong|em)\s*>",
+        "\n",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(r"<[^>]+>", "", text)
+    text = _html.unescape(text)
+    lines = [line.rstrip() for line in text.splitlines()]
+    collapsed = "\n".join(line for line in lines if line.strip())
+    return collapsed.strip()
